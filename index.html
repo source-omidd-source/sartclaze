@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CARTBLAZE® — VOL.06 CONCRETE SEASON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rubik+Spray+Paint&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS (for 3D UI parts) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Three.js & Loaders -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+
+<style>
+/* =========================================================
+   3D ENGINE & GAME STYLES 
+   ========================================================= */
+:root {
+  --action-btn-size: 200px; 
+  /* E-Commerce Variables */
+  --bg:#fafaf7; --card:#ffffff; --soft:#f1f0ea; --line:#e9e8e1;
+  --ink:#101010; --mut:#6e6e66; --dim:#a5a49b;
+  --flame:#ff4d00; --ok:#18b45a;
+  --r:24px; --rs:14px; --pill:999px;
+  --sh1:0 1px 2px rgba(16,16,16,.04),0 4px 16px rgba(16,16,16,.05);
+  --sh2:0 8px 20px rgba(16,16,16,.08),0 24px 60px rgba(16,16,16,.12);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+
+body, html {
+  margin: 0; padding: 0; overflow-x: hidden; width: 100%; height: 100%;
+  background-color: #87CEEB; font-family: 'Inter', system-ui, sans-serif; 
+  touch-action: none; overscroll-behavior: none; /* جلوگیری از رفرش صفحه در موبایل */
+}
+body.lock { overflow: hidden; }
+
+/* 3D Canvas Elements */
+#canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+#ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+
+/* Modern Minimal Circular Joystick */
+#modern-joystick {
+    position: absolute; bottom: 35px; left: 35px; width: 120px; height: 120px;
+    background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.4);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    display: none; pointer-events: auto; z-index: 20 !important;
+}
+/* Subtle track line to indicate 1-axis movement */
+#modern-joystick::before {
+    content: ''; position: absolute; top: 18%; bottom: 18%; left: 50%; transform: translateX(-50%);
+    width: 3px; background: rgba(255,255,255,0.25); border-radius: 2px; pointer-events: none;
+}
+#modern-knob {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.75));
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,1);
+    transition: transform 0.05s linear; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+}
+/* Little dot inside the knob */
+#modern-knob::after {
+    content: ''; width: 12px; height: 12px; border-radius: 50%;
+    background: rgba(0,0,0,0.1);
+}
+
+#interaction-prompt { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
+#error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; }
+
+.modern-modal {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.05);
+  z-index: 50; display: none; pointer-events: auto;
+}
+#modal-backdrop { position: absolute; inset: 0; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 40; display: none; pointer-events: auto; }
+
+.action-img-btn {
+  width: var(--action-btn-size); height: auto; max-width: 45vw; cursor: pointer; transition: all 0.2s ease-in-out; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); pointer-events: auto;
+}
+.action-img-btn:hover { transform: scale(1.08) translateY(-5px); filter: drop-shadow(0 15px 25px rgba(0,0,0,0.4)); }
+.action-img-btn:active { transform: scale(0.95); }
+
+@keyframes popIn { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.pop-animation { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes popOut { 0% { transform: scale(1); opacity: 1; } 20% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.3); opacity: 0; } }
+.pop-out-animation { animation: popOut 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+/* =========================================================
+   MODERN E-COMMERCE UI APP STYLES (OVERLAY)
+   ========================================================= */
+#ecommerce-app {
+  display: none; position: absolute; inset: 0; z-index: 100;
+  background: var(--bg); color: var(--ink); overflow-y: auto; overflow-x: hidden; pointer-events: auto;
+}
+#ecommerce-app * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+#ecommerce-app button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+#ecommerce-app a { color: inherit; text-decoration: none; cursor: pointer; }
+#ecommerce-app input, #ecommerce-app select, #ecommerce-app textarea { font-family: inherit; font-size: 14px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: var(--rs); padding: 15px 18px; width: 100%; outline: none; transition: border-color .2s, box-shadow .2s; }
+#ecommerce-app input:focus, #ecommerce-app select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(16,16,16,.05); }
+#ecommerce-app ::selection { background: var(--flame); color: #fff; }
+
+.hide { display: none !important; }
+.lbl { font-size: 11px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mut); }
+.disp { font-weight: 800; letter-spacing: -.04em; line-height: .96; text-transform: uppercase; }
+
+/* HEADER */
+#ecommerce-app header { position: fixed; top: 0; left: 0; right: 0; z-index: 80; height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(250,250,247,.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
+.logo { display: flex; align-items: center; cursor: pointer; user-select: none; gap: 10px; }
+.logo .lt { font-family: 'Rubik Spray Paint', Impact, sans-serif; font-size: 22px; letter-spacing: .5px; }
+.logo .lt b { color: var(--flame); font-weight: 400; }
+nav.top { display: flex; gap: 6px; align-items: center; position: absolute; left: 50%; transform: translateX(-50%); }
+nav.top a { font-size: 12px; font-weight: 600; letter-spacing: .4px; color: var(--mut); padding: 9px 16px; border-radius: var(--pill); transition: .2s; }
+nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
+.hright { display: flex; gap: 8px; align-items: center; }
+.iconbtn { width: 40px; height: 40px; border-radius: var(--pill); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--ink); transition: .2s; }
+.iconbtn:hover { background: var(--soft); }
+.cartbtn { display: flex; align-items: center; gap: 8px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .6px; padding: 11px 20px; border-radius: var(--pill); transition: transform .2s var(--ease), background .2s; }
+.cartbtn:hover { transform: translateY(-1px); background: var(--flame); }
+.cartbtn em { font-style: normal; background: #fff; color: var(--ink); font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; border-radius: var(--pill); display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+.burger { display: none; }
+.close-game-btn { font-size: 18px; font-weight: 900; color: var(--flame); background: var(--soft); margin-right: 15px; }
+
+/* VIEWS */
+.view { display: none; padding-top: 72px; min-height: 100vh; animation: vfade .4s var(--ease); }
+.view.on { display: block; }
+@keyframes vfade { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+.wrap { max-width: 1360px; margin: 0 auto; padding: 0 40px; }
+.phead { padding: 52px 0 8px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.phead h1 { font-size: clamp(34px, 4.6vw, 56px); }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; height: 52px; padding: 0 28px; border-radius: var(--pill); transition: transform .2s var(--ease), background .2s, box-shadow .2s; white-space: nowrap; }
+.btn:hover { transform: translateY(-2px); background: var(--flame); box-shadow: 0 12px 28px rgba(255,77,0,.28); }
+.btn:active { transform: scale(.98); }
+.btn.flame { background-color: var(--flame) !important; color: #fff !important; }
+.btn.flame:hover { background-color: var(--ink) !important; box-shadow: 0 12px 28px rgba(16,16,16,.2) !important; }
+.btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
+.btn.ghost:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+.btn.wide { width: 100%; }
+.tbtn { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--mut); display: inline-flex; align-items: center; gap: 6px; transition: color .2s; }
+.tbtn:hover { color: var(--flame); }
+
+/* SHOP */
+.toolrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0 6px; flex-wrap: wrap; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--mut); background: var(--card); border: 1px solid var(--line); border-radius: var(--pill); padding: 11px 20px; transition: .2s; }
+.chip:hover, .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 26px 0 100px; }
+.pcard { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; cursor: pointer; transition: transform .3s var(--ease), box-shadow .3s; position: relative; }
+.pcard:hover { transform: translateY(-6px); box-shadow: var(--sh2); }
+.pimg { position: relative; aspect-ratio: 31/34; overflow: hidden; background: var(--soft); display: flex; align-items: center; justify-content: center; }
+.pimg img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s var(--ease); }
+.pcard:hover .pimg img { transform: scale(1.06); }
+.ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 66px; transition: transform .6s var(--ease); }
+.pcard:hover .ph { transform: scale(1.1) rotate(4deg); }
+.ph.p0 { background: linear-gradient(150deg,#efeee7,#e0ded3) } .ph.p1 { background: linear-gradient(150deg,#f3e9dd,#e5d6c3) }
+.badge { position: absolute; top: 14px; left: 14px; z-index: 2; display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; color: #fff; background: rgba(16,16,16,.66); backdrop-filter: blur(8px); padding: 8px 14px; border-radius: var(--pill); }
+.badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--flame); animation: pulse 1.4s infinite; }
+.qadd { position: absolute; right: 14px; bottom: 14px; z-index: 2; width: 42px; height: 42px; border-radius: var(--pill); background: #fff; color: var(--ink); font-size: 20px; font-weight: 600; display: flex; align-items: center; justify-content: center; box-shadow: var(--sh1); opacity: 0; transform: translateY(8px); transition: .25s var(--ease); }
+.pcard:hover .qadd { opacity: 1; transform: none; }
+.qadd:hover { background: var(--flame); color: #fff; }
+.pinfo { padding: 16px 18px 18px; display: flex; justify-content: space-between; gap: 10px; }
+.pinfo h4 { font-size: 13px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.pinfo small { display: block; font-size: 10px; letter-spacing: 1.4px; color: var(--dim); margin-top: 5px; text-transform: uppercase; }
+.pinfo .pr { font-size: 14px; font-weight: 800; }
+
+/* PRODUCT */
+.pd { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; padding: 36px 0 100px; }
+.gal .main { position: relative; border-radius: 28px; overflow: hidden; aspect-ratio: 87/96; background: var(--soft); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+.gal .main img { width: 100%; height: 100%; object-fit: cover; }
+.pd h2 { font-size: clamp(30px, 3.6vw, 46px); margin: 6px 0 10px; }
+.pd .price { font-size: 20px; font-weight: 800; }
+.pd .desc { font-size: 14px; line-height: 1.65; color: #54544c; margin-top: 18px; max-width: 520px; }
+.viewing { display: inline-flex; align-items: center; gap: 9px; margin-top: 20px; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; color: var(--mut); background: var(--soft); border-radius: var(--pill); padding: 10px 18px; text-transform: uppercase; }
+.viewing i { width: 7px; height: 7px; border-radius: 50%; background: var(--flame); animation: pulse 1.4s infinite; }
+.optrow { margin-top: 30px; }
+.opthead { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.sizes { display: flex; gap: 10px; flex-wrap: wrap; }
+.szbtn { min-width: 58px; height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--rs); font-size: 13px; font-weight: 700; color: var(--mut); background-color: var(--card); transition: .15s; }
+.szbtn:hover { border-color: var(--ink); color: var(--ink); }
+.szbtn.on { background-color: var(--ink) !important; color: #fff !important; border-color: var(--ink) !important; }
+.buyrow { display: flex; gap: 10px; margin-top: 26px; }
+.qtybox { display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--pill); background: var(--card); flex: none; }
+.qtybox button { width: 44px; height: 52px; font-size: 17px; color: var(--mut); }
+.qtybox button:hover { color: var(--flame); }
+.qtybox span { width: 30px; text-align: center; font-size: 14px; font-weight: 800; }
+
+/* CHECKOUT */
+.co { display: grid; grid-template-columns: 1fr 460px; gap: 52px; padding: 26px 0 100px; align-items: start; }
+.costep { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--dim); margin: 28px 0 14px; text-transform: uppercase; }
+.frow3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.fstack input { margin-bottom: 12px; }
+.sumbox { background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 28px; position: sticky; top: 96px; box-shadow: var(--sh1); }
+.sumbox h3 { font-size: 13px; font-weight: 800; letter-spacing: 1.4px; margin-bottom: 20px; text-transform: uppercase; }
+.mini { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.mini .th { width: 52px; height: 64px; border-radius: 12px; background: var(--soft); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 20px; flex: none; overflow: hidden; }
+.mini .th img { width: 100%; height: 100%; object-fit: cover; }
+.mini h5 { font-size: 11px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
+.mini .mp { margin-left: auto; font-size: 12px; font-weight: 800; }
+.sline { display: flex; justify-content: space-between; font-size: 13px; color: var(--mut); margin-bottom: 10px; }
+.sline.tot { font-size: 18px; font-weight: 800; color: var(--ink); margin: 14px 0 18px; }
+
+/* DRAWER */
+.scrim { position: fixed; inset: 0; z-index: 90; background: rgba(16,16,16,.4); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .3s; }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 10px; right: 10px; bottom: 10px; z-index: 95; width: min(440px, calc(100vw - 20px)); background: var(--card); border-radius: 28px; box-shadow: var(--sh2); transform: translateX(calc(100% + 20px)); transition: transform .45s var(--ease); display: flex; flex-direction: column; overflow: hidden; }
+.drawer.on { transform: none; }
+.dhead { display: flex; align-items: center; justify-content: space-between; padding: 24px 26px; border-bottom: 1px solid var(--line); }
+.dhead h3 { font-size: 14px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
+.dhead .x { width: 36px; height: 36px; border-radius: var(--pill); font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.dhead .x:hover { background: var(--soft); }
+.dbody { flex: 1; overflow-y: auto; padding: 10px 26px; }
+.dit { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.dit .th { width: 64px; height: 78px; border-radius: 14px; background: var(--soft); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 24px; flex: none; overflow: hidden; }
+.dit .th img { width: 100%; height: 100%; object-fit: cover; }
+.dit h5 { font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
+.dit .mid { flex: 1; }
+.dit .dp { font-size: 13px; font-weight: 800; text-align: right; }
+.qmini { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--pill); margin-top: 8px;}
+.qmini button { width: 28px; height: 28px; font-size: 13px; color: var(--mut); }
+.qmini button:hover { color: var(--flame); }
+.qmini span { width: 24px; text-align: center; font-size: 11px; font-weight: 800; }
+.dfoot { padding: 20px 26px 24px; border-top: 1px solid var(--line); background: var(--card); }
+.dfoot .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--mut); margin-bottom: 8px; }
+.dfoot .row.tot { font-size: 17px; font-weight: 800; color: var(--ink); margin: 10px 0 16px; }
+
+/* LOOKBOOK & PASS */
+.lb { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; padding: 26px 0 100px; }
+.tile { position: relative; border-radius: var(--r); overflow: hidden; min-height: 250px; display: flex; align-items: flex-end; background: linear-gradient(150deg,#eceadf,#dcd8c9); border: 1px solid var(--line); cursor: pointer; transition: transform .3s var(--ease), box-shadow .3s; }
+.tile:hover { transform: translateY(-5px) rotate(.4deg); box-shadow: var(--sh2); }
+.tile em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 72px; }
+.tile span { position: relative; z-index: 2; margin: 14px; padding: 8px 16px; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; color: #fff; background: rgba(16,16,16,.72); backdrop-filter: blur(8px); border-radius: var(--pill); text-transform: uppercase; }
+.t1 { grid-column: span 6; grid-row: span 2; min-height: 540px; } .t2 { grid-column: span 6; } .t3, .t4 { grid-column: span 3; } .t5, .t6, .t7 { grid-column: span 4; }
+.passwrap { margin: 26px 12px 100px; background: #101010; border-radius: 32px; overflow: hidden; position: relative; }
+.pass { max-width: 540px; margin: 0 auto; text-align: center; padding: 90px 24px; position: relative; color: #fff; }
+.pass input { background: #1b1b19; border-color: #2e2e2a; color: #fff; border-radius: var(--pill); padding: 17px 26px; margin-bottom: 12px; }
+
+/* TOAST */
+#toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--ink); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; padding: 15px 28px; border-radius: var(--pill); z-index: 9999; transition: transform .35s cubic-bezier(.2,1.5,.4,1); text-transform: uppercase; box-shadow: var(--sh2); }
+#toast.show { transform: translateX(-50%) translateY(0); }
+#toast.flame { background: var(--flame); }
+
+@keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,77,0,.5) } 50% { opacity: .55; box-shadow: 0 0 0 6px rgba(255,77,0,0) } }
+
+/* MOBILE */
+.bnav { display: none; position: fixed; bottom: 10px; left: 12px; right: 12px; z-index: 85; height: 58px; background: rgba(16,16,16,.92); backdrop-filter: blur(14px); border-radius: var(--pill); box-shadow: var(--sh2); }
+.bnav button { flex: 1; font-size: 9px; font-weight: 800; letter-spacing: 1.2px; color: #8b8b83; }
+.bnav button.on { color: #fff; }
+.mmenu { position: fixed; inset: 0; z-index: 110; background: var(--bg); display: none; flex-direction: column; padding: 86px 26px; }
+.mmenu.open { display: flex; }
+@media(max-width:1080px){
+  .wrap { padding: 0 24px; }
+  .grid { grid-template-columns: repeat(3,1fr); }
+  .pd { grid-template-columns: 1fr; gap: 36px; }
+  .co { grid-template-columns: 1fr; }
+  .sumbox { position: static; }
+  nav.top { display: none; }
+  .t1 { grid-column: span 12; min-height: 380px; } .t2 { grid-column: span 12; } .t3, .t4 { grid-column: span 6; } .t5, .t6, .t7 { grid-column: span 12; }
+}
+@media(max-width:720px){
+  .wrap { padding: 0 18px; }
+  #ecommerce-app header { padding: 0 16px; height: 62px; }
+  .view { padding-top: 62px; padding-bottom: 84px; }
+  .burger { display: flex; }
+  .bnav { display: flex; }
+  .cartbtn .ct { display: none; }
+  .grid { grid-template-columns: repeat(2,1fr); gap: 12px; }
+  .buyrow { flex-direction: column; }
+  .qtybox { width: max-content; }
+}
+</style>
+</head>
+<body>
+
+<!-- 3D WORLD: START SCREEN -->
+<div id="intro-screen" class="absolute inset-0 z-[9999] bg-[#050505] overflow-hidden transition-opacity duration-1000 pointer-events-auto flex items-center justify-center">
+    <div id="intro-bg" class="absolute inset-0 z-0 bg-[url('BG.jpg')] bg-cover bg-center filter blur-[1px] brightness-75 scale-105 opacity-0 transition-opacity duration-1000"></div>
+    <div id="start-ui-container" class="absolute z-10 flex flex-col items-center justify-center w-full pointer-events-none transition-all duration-1000 opacity-0 translate-y-6" style="bottom: 15%">
+        <img id="btn-start-experience" src="start.png" alt="Start" 
+             class="cursor-pointer transition-transform duration-300 drop-shadow-lg pointer-events-auto w-[320px] h-auto hover:scale-105"
+             onerror="this.src=''; this.alt='START'; this.className='text-white/80 hover:text-white text-xl font-bold tracking-[0.4em] uppercase transition-all duration-300 cursor-pointer drop-shadow-md pb-1 border-b border-transparent hover:border-white/50 pointer-events-auto';">
+        
+        <div id="loading-container" class="hidden flex-col items-center gap-3 w-40 pointer-events-none mt-6">
+            <div class="text-white/70 text-[9px] font-light tracking-[0.2em] uppercase">Loading...</div>
+            <div class="w-full h-[1px] bg-white/20 overflow-hidden rounded-full">
+                <div id="loading-bar-fill" class="h-full bg-white/90 w-0 transition-all duration-300"></div>
+            </div>
+        </div>
+    </div>
+    <div id="error-log" class="absolute top-5 left-5 z-20 text-red-500 bg-white/90 p-4 rounded-lg text-xs font-mono hidden"></div>
+</div>
+
+<!-- 3D WORLD: CANVAS -->
+<div id="canvas-container"></div>
+
+<!-- 3D WORLD: UI LAYER -->
+<div id="ui-layer">
+    <!-- Guest Profile Section -->
+    <div class="absolute top-3 left-5 flex items-center gap-3 pointer-events-auto">
+        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center border-1 border-black shadow-sm overflow-hidden">
+            <img src="Profile.png" class="w-full h-full object-cover" alt="Profile" onerror="this.style.display='none'">
+        </div>
+        <span class="font-bold text-lg text-gray-900 drop-shadow-md">guest</span>
+    </div>
+
+    <!-- MAIN LOGO (Responsive positioning) -->
+    <img src="cartblaze.png" class="absolute top-20 md:top-5 left-1/2 -translate-x-1/2 w-32 pointer-events-none opacity-90 drop-shadow-md transition-all" alt="Cart Blaze" onerror="this.style.display='none'">
+
+    <!-- HUD Cart Section -->
+    <div class="absolute top-3 right-5 flex items-center gap-4 pointer-events-auto" onclick="toast('CHECKOUT IS AT THE POS MACHINE! 🏃‍♂️', true)">
+        <span id="hud-amount" class="font-bold text-sm text-gray-800 tracking-wider">cart: $0</span>
+        <div class="relative cursor-pointer hover:scale-105 transition-transform">
+            <div class="w-13 h-13 bg-white rounded-full flex items-center justify-center border-1 border-black shadow-sm overflow-hidden">
+                <img id="hud-cart-icon" src="Cart.png" class="w-12 h-12 object-contain" alt="Cart" onerror="this.style.display='none'">
+            </div>
+            <div id="hud-cart-badge" class="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-transparent shadow-sm">0</div>
+        </div>
+    </div>
+
+    <!-- Modern Custom Circular Joystick -->
+    <div id="modern-joystick">
+        <div id="modern-knob"></div>
+    </div>
+
+    <div id="modal-backdrop"></div>
+
+    <!-- Interaction Prompt Buttons -->
+    <div id="interaction-prompt">
+        <img id="btn-open-shop" src="store.png" class="action-img-btn" alt="Inspect Rack" onerror="this.onerror=null; this.src='https://placehold.co/130x130/f4ecd8/111827?text=Store';">
+        <img id="btn-open-pos" src="checkout.png" class="action-img-btn" alt="Checkout" style="display: none;" onerror="this.onerror=null; this.src='https://placehold.co/130x130/f4ecd8/111827?text=Checkout';">
+    </div>
+
+    <!-- Easter Egg Modal -->
+    <div id="easter-egg-modal" class="modern-modal flex-col items-center p-8 w-[90%] max-w-[400px] text-center">
+        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6 shadow-md mx-auto">
+            <span class="text-3xl">🎉</span>
+        </div>
+        <h2 class="text-2xl font-bold mb-2 text-purple-600">ایستر اگ!</h2>
+        <p class="mb-8 text-gray-500 text-sm">شما راز مخفی این پست را پیدا کردید!</p>
+        <button id="btn-close-easter-egg" class="w-full py-3 rounded-full bg-purple-600 text-white font-semibold hover:bg-purple-800 transition">عالیه!</button>
+    </div>
+    
+    <audio id="cart-squeak" src="https://cdn.freesound.org/previews/175/175409_3158652-lq.mp3" loop preload="auto"></audio>
+</div>
+
+<!-- =========================================================
+     MODERN E-COMMERCE UI APP OVERLAY
+     ========================================================= -->
+<div id="ecommerce-app">
+  <!-- HEADER -->
+  <header id="hdr">
+    <div class="logo">
+      <button class="iconbtn close-game-btn" onclick="closeStoreUI()" title="Back to Game">✕</button>
+      <a id="logo" onclick="go('shop')">
+        <span class="lt">CART<b>BLAZE</b></span>
+      </a>
+    </div>
+    
+    <nav class="top">
+      <a data-nav="shop" onclick="go('shop')">Shop</a>
+      <a data-nav="lookbook" onclick="go('lookbook')">Lookbook</a>
+      <a data-nav="pass" onclick="go('pass')">Blaze Pass</a>
+    </nav>
+    <div class="hright">
+      <button class="cartbtn" onclick="openDrawer()"><span class="ct">BAG</span> <em id="cnum">0</em></button>
+      <button class="iconbtn burger" onclick="mmenu(true)">☰</button>
+    </div>
+  </header>
+
+  <!-- MOBILE MENU -->
+  <div class="mmenu" id="mm">
+    <button class="x" onclick="mmenu(false)">×</button>
+    <a onclick="go('shop');mmenu(false)">Shop <em>↗</em></a>
+    <a onclick="go('lookbook');mmenu(false)">Lookbook <em>↗</em></a>
+    <a onclick="go('pass');mmenu(false)">Blaze Pass <em>↗</em></a>
+  </div>
+
+  <!-- ============ SHOP ============ -->
+  <section class="view on" id="view-shop">
+    <div class="wrap">
+      <div class="phead">
+        <div><h1 class="disp">The Shop</h1><div class="sub lbl">VOL.06 · CONCRETE SEASON</div></div>
+        <span class="lbl" id="shopcount"></span>
+      </div>
+      <div class="grid" id="pgrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ PRODUCT ============ -->
+  <section class="view" id="view-product">
+    <div class="wrap">
+      <div class="phead" style="padding-bottom:0"><button class="tbtn" onclick="go('shop')">← Back to shop</button></div>
+      <div class="pd" id="pdetail"></div>
+    </div>
+  </section>
+
+  <!-- ============ CHECKOUT (Accessed via 3D POS) ============ -->
+  <section class="view" id="view-checkout">
+    <div class="wrap">
+      <div class="phead">
+        <div><h1 class="disp">Terminal Checkout</h1><div class="sub lbl">🔒 SECURE POS MACHINE — 256-BIT SSL</div></div>
+        <button class="tbtn" onclick="openDrawer()">← Edit bag</button>
+      </div>
+      <div class="co">
+        <div>
+          <div class="costep">01 · Contact</div>
+          <input type="email" id="co-email" placeholder="you@email.com">
+          <div class="costep">02 · Shipping</div>
+          <div class="fstack">
+            <input type="text" id="co-name" placeholder="Full name">
+            <input type="text" id="co-addr" placeholder="Street address">
+            <div class="frow3">
+              <input type="text" id="co-city" placeholder="City">
+              <input type="text" id="co-zip" placeholder="ZIP / Postal">
+              <input type="text" id="co-country" placeholder="Country">
+            </div>
+          </div>
+          <div class="costep">03 · Payment (Simulation)</div>
+          <div class="fstack">
+            <input type="text" id="co-card" placeholder="Card number" maxlength="19" oninput="fmtCard(this)" value="**** **** **** 1234">
+          </div>
+        </div>
+        <div class="sumbox">
+          <h3>Order Summary</h3>
+          <div id="co-items"></div>
+          <div style="height:1px;background:var(--line);margin:14px 0"></div>
+          <div class="sline"><span>Subtotal</span><span id="co-sub">$0</span></div>
+          <div class="sline tot"><span>Total</span><span id="co-tot">$0</span></div>
+          <button class="btn flame wide" onclick="placeOrder()">Place Order →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONFIRMED ============ -->
+  <section class="view" id="view-confirmed">
+    <div class="wrap">
+      <div class="done" style="margin: 0 auto; text-align: center; padding: 90px 0;">
+        <div class="tick" style="width:66px;height:66px;border-radius:50%;background:var(--ok);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 30px;">✓</div>
+        <h2 class="disp" style="font-size: clamp(32px, 4.4vw, 48px);">Order Confirmed</h2>
+        <div class="onum" id="onum" style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: var(--flame); margin: 14px 0 16px;">ORDER #CB-0000</div>
+        <p style="margin-bottom: 30px;">Tracking hits your inbox within 48 hours. Grab the cart and go.</p>
+        <div class="acts" style="display: flex; gap: 15px; justify-content: center;">
+          <button class="btn flame" onclick="finishCheckout()">Return to Game</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LOOKBOOK ============ -->
+  <section class="view" id="view-lookbook">
+    <div class="wrap">
+      <div class="phead"><div><h1 class="disp">Lookbook</h1><div class="sub lbl">VOL.06 — SHOT ON THE STREET</div></div></div>
+      <div class="lb" id="lbgrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ BLAZE PASS ============ -->
+  <section class="view" id="view-pass">
+    <div class="wrap" style="max-width:100%;padding:0">
+      <div class="passwrap">
+        <div class="pass">
+          <h2 class="disp">Blaze Pass</h2>
+          <p style="color: #bbb; margin-bottom: 20px;">CartBlaze is invite-only. Request access to skip the line for future drops.</p>
+          <input type="email" id="passemail" placeholder="you@email.com">
+          <button class="btn flame wide" onclick="requestAccess()">Request Access →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CART DRAWER -->
+  <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+  <aside class="drawer" id="drawer">
+    <div class="dhead">
+      <h3>Your Bag</h3>
+      <button class="x" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="dbody" id="dbody"></div>
+    <div class="dfoot" id="dfoot"></div>
+  </aside>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="bnav">
+    <button data-bnav="shop" onclick="go('shop')">SHOP</button>
+    <button data-bnav="lookbook" onclick="go('lookbook')">LOOKBOOK</button>
+    <button onclick="openDrawer()">BAG <em id="bnum">0</em></button>
+    <button data-bnav="pass" onclick="go('pass')">PASS</button>
+  </nav>
+
+</div>
+
+<!-- GLOBAL TOAST (Matches UI theme) -->
+<div id="toast"></div>
+
+<script>
+    /* =========================================================
+       E-COMMERCE UI LOGIC
+       ========================================================= */
+    const EMO = {tee:'👕'};
+    
+    // Exactly 5 T-shirts requested
+    let products = [
+        {id:1, name:'GRAFFITI TEE', price:70, cat:'tee', sizes:'S M L XL', live:true, stock:true, img:'products/tshirt1.jpg', desc:'All-over hand-sprayed graffiti print sampled from the city.'},
+        {id:2, name:'CONCRETE TEE', price:65, cat:'tee', sizes:'S M L XL', live:true, stock:true, img:'products/tshirt11.jpg', desc:'Cement-dyed heavyweight tee. No two wash the same.'},
+        {id:3, name:'TROLLEY TEE', price:60, cat:'tee', sizes:'S M L XL', live:true, stock:true, img:'products/tshirt12.jpg', desc:'The flaming cart, front and center. The one that started it all.'},
+        {id:4, name:'STICKER TEE', price:65, cat:'tee', sizes:'S M L XL', live:true, stock:true, img:'products/tshirt2.jpg', desc:'Slap-culture sticker collage front print.'},
+        {id:5, name:'EMBER TEE', price:60, cat:'tee', sizes:'S M L XL', live:true, stock:true, img:'products/tshirt21.jpg', desc:'Tonal ember embroidery at the chest.'}
+    ];
+
+    let cart = [], curP = null, curSize = null, curQty = 1;
+    
+    const $ = id => document.getElementById(id);
+    const money = n => '$' + Number(n).toLocaleString();
+    const qty = () => cart.reduce((s, c) => s + c.q, 0);
+    const sub = () => cart.reduce((s, c) => { const p = products.find(x => x.id === c.pid); return s + (p ? p.price * c.q : 0); }, 0);
+    const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    
+    function toast(m, f) {
+        const t = $('toast');
+        t.textContent = m;
+        t.className = f ? 'show flame' : 'show';
+        clearTimeout(t._t);
+        t._t = setTimeout(() => t.className = '', 3500);
+    }
+    
+    function ph(p) { return `<div class="ph p${(p.id||0)%4}">${EMO[p.cat]||'🛒'}</div>`; }
+    function im(p) { return p.img ? `<img src="${esc(p.img)}" alt="${esc(p.name)}" onerror="this.outerHTML='${ph(p).replace(/"/g,'&quot;')}'">` : ph(p); }
+    
+    // Bridge: Sync with 3D HUD
+    function sync() {
+        const q = qty();
+        if($('cnum')) $('cnum').textContent = q;
+        if($('bnum')) $('bnum').textContent = q;
+        
+        // Changed "amount" to "cart"
+        if($('hud-amount')) $('hud-amount').innerText = `cart: $${sub()}`;
+        if($('hud-cart-badge')) $('hud-cart-badge').innerText = q;
+        const cartIcon = $('hud-cart-icon');
+        if(cartIcon) cartIcon.src = q > 0 ? 'Cart1.png' : 'Cart.png';
+    }
+
+    function go(v) {
+        document.querySelectorAll('.view').forEach(x => x.classList.remove('on'));
+        const target = $('view-' + v);
+        if(target) target.classList.add('on');
+        
+        document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('on',a.dataset.nav===v));
+        document.querySelectorAll('[data-bnav]').forEach(a=>a.classList.toggle('on',a.dataset.bnav===v));
+        
+        $('ecommerce-app').scrollTo({top: 0});
+        
+        if(v === 'shop') renderShop();
+        if(v === 'checkout') renderCO();
+        if(v === 'lookbook') renderLookbook();
+    }
+
+    function mmenu(o){$('mm').classList.toggle('open',o);}
+
+    function cardHTML(p) {
+        return `<div class="pcard" onclick="openProduct(${p.id})">
+            <div class="pimg">
+                ${p.live ? '<div class="badge"><i></i>LIVE</div>' : ''}
+                ${im(p)}
+                <button class="qadd" title="Quick add" onclick="event.stopPropagation();quickAdd(${p.id})">+</button>
+            </div>
+            <div class="pinfo">
+                <div><h4>${esc(p.name)}</h4><small>${esc(p.sizes)}</small></div>
+                <div class="pr">${money(p.price)}</div>
+            </div>
+        </div>`;
+    }
+
+    function renderShop() {
+        $('shopcount').textContent = products.length + ' PIECES';
+        $('pgrid').innerHTML = products.map(cardHTML).join('');
+    }
+
+    function openProduct(id) {
+        curP = products.find(p => p.id === id); if(!curP) return;
+        curSize = null; curQty = 1;
+        const p = curP, szs = String(p.sizes).split(/[,\s]+/).filter(Boolean), v = 40 + Math.floor(Math.random()*160);
+        
+        $('pdetail').innerHTML = `
+            <div class="gal">
+                <div class="main">${p.live?'<div class="badge"><i></i>LIVE</div>':''}${im(p)}</div>
+            </div>
+            <div>
+                <span class="lbl">VOL.06 / T-SHIRT</span>
+                <h2 class="disp">${esc(p.name)}</h2>
+                <div class="price">${money(p.price)}</div>
+                <div class="viewing"><i></i>${v} viewing right now</div>
+                <p class="desc">${esc(p.desc||'')}</p>
+                <div class="optrow">
+                    <div class="opthead"><span class="lbl" style="color:var(--ink)">Select size</span></div>
+                    <div class="sizes">${szs.map(s => `<button class="szbtn" onclick="pickSize(this,'${esc(s)}')">${esc(s)}</button>`).join('')}</div>
+                </div>
+                <div class="buyrow">
+                    <div class="qtybox"><button onclick="chPQ(-1)">–</button><span id="pq">1</span><button onclick="chPQ(1)">+</button></div>
+                    <button class="btn flame wide" onclick="addToCart()">Add to bag — ${money(p.price)}</button>
+                </div>
+            </div>`;
+        go('product');
+    }
+
+    function pickSize(el, s) { 
+        curSize = s; 
+        document.querySelectorAll('.szbtn').forEach(b => b.classList.remove('on')); 
+        el.classList.add('on'); 
+    }
+    
+    function chPQ(d) { curQty = Math.max(1, curQty + d); $('pq').textContent = curQty; }
+
+    function addLine(pid, size, q) {
+        const ex = cart.find(c => c.pid === pid && c.size === size);
+        if(ex) ex.q += q; else cart.push({ pid, size, q });
+        sync(); renderDrawer();
+        if (typeof window.igniteCart === 'function') window.igniteCart();
+    }
+
+    function quickAdd(id){
+        const p=products.find(x=>x.id===id); if(!p)return;
+        const sz=p.sizes.split(/[,\s]+/)[0];
+        addLine(p.id, sz, 1);
+        toast(p.name+' ADDED! WALK TO POS TERMINAL 🔥', true);
+        openDrawer();
+    }
+
+    function addToCart() {
+        if(!curSize) { toast('SELECT A SIZE FIRST', true); return; }
+        addLine(curP.id, curSize, curQty);
+        toast('ADDED! WALK TO POS TERMINAL 🔥', true);
+        openDrawer();
+    }
+
+    // Drawer Logic
+    function openDrawer(){ renderDrawer(); $('drawer').classList.add('on'); $('scrim').classList.add('on'); }
+    function closeDrawer(){ $('drawer').classList.remove('on'); $('scrim').classList.remove('on'); }
+
+    function renderDrawer(){
+        if(!cart.length){
+            $('dbody').innerHTML=`<div style="text-align:center; padding: 70px 0; color: var(--dim);">Your bag is empty.</div>`;
+            $('dfoot').innerHTML=''; return;
+        }
+        $('dbody').innerHTML=cart.map((c,i)=>{
+            const p=products.find(x=>x.id===c.pid);if(!p)return '';
+            return `<div class="dit">
+                <div class="th">${im(p)}</div>
+                <div class="mid">
+                    <h5>${esc(p.name)}</h5><small>Size ${esc(c.size)}</small>
+                    <div class="qmini"><button onclick="chQ(${i},-1)">–</button><span>${c.q}</span><button onclick="chQ(${i},1)">+</button></div>
+                </div>
+                <div><div class="dp">${money(p.price*c.q)}</div><button style="font-size:9px; font-weight:700; letter-spacing:1.2px; color:var(--dim); margin-top:8px; display:block; text-align:right;" onclick="rmLine(${i})">REMOVE</button></div>
+            </div>`;
+        }).join('');
+        $('dfoot').innerHTML=`
+            <div class="row"><span>Subtotal</span><span>${money(sub())}</span></div>
+            <div class="row tot"><span>Total</span><span>${money(sub())}</span></div>
+            <button class="btn flame wide" onclick="toast('CHECKOUT IS AT THE POS MACHINE! 🏃‍♂️', true); closeDrawer(); closeStoreUI();">Go to POS Machine →</button>`;
+    }
+    
+    function chQ(i,d){cart[i].q+=d;if(cart[i].q<=0)cart.splice(i,1); sync(); renderDrawer();}
+    function rmLine(i){cart.splice(i,1); sync(); renderDrawer(); toast('REMOVED');}
+
+    // Checkout Logic
+    function fmtCard(el) { el.value = el.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim(); }
+    
+    function renderCO() {
+        $('co-items').innerHTML = cart.map(c => {
+            const p = products.find(x => x.id === c.pid); if(!p) return '';
+            return `<div class="mini"><div class="th">${im(p)}</div><div><h5>${esc(p.name)}</h5><small>Size ${esc(c.size)} ×${c.q}</small></div><div class="mp">${money(p.price * c.q)}</div></div>`;
+        }).join('');
+        $('co-sub').textContent = money(sub());
+        $('co-tot').textContent = money(sub());
+    }
+
+    function placeOrder() {
+        const e = $('co-email').value.trim(), n = $('co-name').value.trim(), a = $('co-addr').value.trim();
+        if(!e || !e.includes('@')) { toast('ENTER A VALID EMAIL', true); return; }
+        if(!n || !a) { toast('COMPLETE SHIPPING DETAILS', true); return; }
+        
+        $('onum').textContent = 'ORDER #CB-' + (2000 + Math.floor(Math.random() * 8000));
+        cart = []; sync();
+        go('confirmed');
+    }
+
+    function finishCheckout() {
+        closeStoreUI();
+        isFiery = false; // Turn off fire when returning
+        if (fireCartModel) fireCartModel.visible = false;
+    }
+
+    function renderLookbook() {
+        const tiles = [ {e:'🛒',t:'01 — Cart Run'}, {e:'🏪',t:'02 — Storefront'}, {e:'🧥',t:'03 — TBlaze'}, {e:'🧵',t:'04 — Detail'} ];
+        $('lbgrid').innerHTML=tiles.map((x,i)=>`
+            <div class="tile t${(i%3)+1}" onclick="go('shop')">
+                <em>${esc(x.e)}</em><span>${esc(x.t)}</span>
+            </div>`).join('');
+    }
+
+    function requestAccess() {
+        const e=$('passemail').value.trim();
+        if(!e||!e.includes('@')){toast('ENTER A VALID EMAIL', true);return;}
+        $('passemail').value=''; toast('ACCESS REQUESTED ✓');
+    }
+
+    /* =========================================================
+       BRIDGE: 3D WORLD & UI INTERACTION
+       ========================================================= */
+    
+    function openStoreUI() {
+        const app = $('ecommerce-app');
+        if (app) {
+            app.style.display = 'block';
+            document.body.classList.add('lock');
+            $('ui-layer').style.display = 'none'; // hide 3D HUD
+            isModalOpen = true;
+            go('shop'); 
+            if (interactionPrompt) interactionPrompt.style.display = 'none';
+        }
+    }
+
+    function openCheckoutUI() {
+        if (cart.length === 0) {
+            toast('YOUR BAG IS EMPTY! BROWSE THE STORE FIRST.', true);
+            if (interactionPrompt) interactionPrompt.style.display = 'none';
+            return;
+        }
+        const app = $('ecommerce-app');
+        if (app) {
+            app.style.display = 'block';
+            document.body.classList.add('lock');
+            $('ui-layer').style.display = 'none'; // hide 3D HUD
+            isModalOpen = true;
+            go('checkout'); 
+            if (interactionPrompt) interactionPrompt.style.display = 'none';
+        }
+    }
+
+    function closeStoreUI() {
+        const app = $('ecommerce-app');
+        if (app) {
+            app.style.display = 'none';
+            document.body.classList.remove('lock');
+            $('ui-layer').style.display = 'block'; // show 3D HUD
+            isModalOpen = false;
+            checkInteraction(); 
+        }
+    }
+
+    /* =========================================================
+       3D SCENE & ENGINE LOGIC
+       ========================================================= */
+    // Global export to let modern UI trigger fire effect properly
+    window.igniteCart = function() {
+        if(isFiery) return;
+        isFiery = true;
+        if (fireCartModel) fireCartModel.visible = true;
+    };
+
+    const CAMERA_FOCAL_LENGTH = 100;
+    
+    function calculateCameraDistance() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const minAspect = 0.6;  const maxAspect = 1.77; 
+        const minDist = 40;     const maxDist = 73; 
+        let clampedAspect = Math.max(minAspect, Math.min(maxAspect, aspect));
+        let ratio = (clampedAspect - minAspect) / (maxAspect - minAspect);
+        return minDist + (ratio * (maxDist - minDist));
+    }
+
+    let CAMERA_DISTANCE = calculateCameraDistance();
+    const CAMERA_ANGLE_H_DEG = 90; const CAMERA_ANGLE_V_DEG = 84; 
+    const CAMERA_TARGET_Y_OFFSET = 4.3; const CAMERA_LERP_SPEED = 100.0; 
+    const CAMERA_LIMIT_MIN_Z_DESKTOP = -1.0; const CAMERA_LIMIT_MIN_Z_MOBILE = -8.5; 
+    
+    function calculateCameraMinZ() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const mobileAspect = 9 / 16; const desktopAspect = 16 / 9;
+        let ratio = (aspect - mobileAspect) / (desktopAspect - mobileAspect);
+        ratio = Math.max(0, Math.min(1, ratio)); 
+        return CAMERA_LIMIT_MIN_Z_MOBILE + (ratio * (CAMERA_LIMIT_MIN_Z_DESKTOP - CAMERA_LIMIT_MIN_Z_MOBILE));
+    }
+
+    let currentCameraLimitMinZ = calculateCameraMinZ();
+    const CAMERA_LIMIT_MAX_Z = 18;  
+    let cameraTargetPos = new THREE.Vector3();
+    let isCameraInitialized = false;
+    const CAMERA_SMOOTH_SPEED = 5.0; 
+
+    const ENV_POS_X = 0; const ENV_POS_Y = -6; const ENV_POS_Z = 0;
+    const ENV_ROT_X = 0; const ENV_ROT_Y = Math.PI; const ENV_ROT_Z = 0;
+    const ENV_SCALE = 0.47; const AUTO_FIT_ENV = true; 
+    const CART_POS_Y = 0.1; const CART_START_X = 1; const CART_START_Z = 17.7;
+
+    const PROPS_GLB_NAME = 'props.glb';
+    const START_IMAGE_WIDTH = 320; const START_IMAGE_BOTTOM = 15; const START_IMAGE_HOVER_SCALE = 1.05;
+    const StandardColorSpace = THREE.sRGBEncoding;
+
+    let raycastTimer = 0; let currentSteerAngle = 0; 
+    let currentUp = new THREE.Vector3(0, 1, 0); let targetUp = new THREE.Vector3(0, 1, 0); 
+    let targetCartY = CART_POS_Y;       
+    const reusableRaycaster = new THREE.Raycaster(); 
+    const downVector = new THREE.Vector3(0, -1, 0);  
+    let cartInitialSnapped = false; 
+    let cartWheels = []; const WHEEL_RADIUS = 0.2;
+
+    function applyStartSettings() {
+        const container = document.getElementById('start-ui-container');
+        const btn = document.getElementById('btn-start-experience');
+        if (container) container.style.bottom = START_IMAGE_BOTTOM + '%';
+        if (btn) {
+            btn.style.width = START_IMAGE_WIDTH + 'px'; btn.style.height = 'auto'; 
+            btn.onmouseenter = () => { if(!isStartClicked) btn.style.transform = `scale(${START_IMAGE_HOVER_SCALE})`; };
+            btn.onmouseleave = () => { if(!isStartClicked) btn.style.transform = 'scale(1)'; };
+            
+            // بخش کلیک تغییر کرده تا قفل صدای آیفون باز بشه
+            btn.onclick = () => {
+                
+                
+    
+                // 2. بقیه کدهای استارت
+                isStartClicked = true; 
+                btn.style.opacity = '0';
+                setTimeout(() => btn.style.display = 'none', 300);
+                
+                if(isEngineLoaded) startGame();
+                else document.getElementById('loading-container').classList.remove('hidden');
+            };
+        }
+    }
+
+    function preloadIntroAssets() {
+        const bgImg = new Image(); bgImg.src = 'BG.jpg';
+        const introBg = document.getElementById('intro-bg');
+        const startUI = document.getElementById('start-ui-container');
+        const revealUI = () => { if (introBg) introBg.classList.remove('opacity-0'); setTimeout(() => { if (startUI) startUI.classList.remove('opacity-0', 'translate-y-6'); }, 500); };
+        bgImg.onload = revealUI; bgImg.onerror = revealUI; 
+    }
+
+    applyStartSettings(); preloadIntroAssets();
+
+    let isEngineLoaded = false; let isStartClicked = false;
+    let envLoaded = false; let propsLoaded = false;
+
+    function initLoadingManager() {
+        THREE.DefaultLoadingManager.onLoad = function () { isEngineLoaded = true; if(isStartClicked) startGame(); };
+        THREE.DefaultLoadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
+            const fill = document.getElementById('loading-bar-fill');
+            if (fill) fill.style.width = ((itemsLoaded / itemsTotal) * 100) + '%';
+        };
+        THREE.DefaultLoadingManager.onError = function ( url ) { console.warn('Error loading asset:', url); isEngineLoaded = true; if(isStartClicked) startGame(); };
+    }
+
+    function startGame() {
+        const intro = document.getElementById('intro-screen');
+        if(intro) { intro.style.opacity = '0'; setTimeout(() => { intro.style.display = 'none'; }, 1000); }
+    }
+
+    const FIRE_OFFSET_X = 0.2; const FIRE_OFFSET_Y = 0.9; const FIRE_OFFSET_Z = -0.3; const FIRE_SCALE = 2;     
+
+    let scene, camera, renderer, cartGroup, normalCartModel, fireCartModel;
+    let clothingRack = null; let posMachine = null; let postMeshes = []; 
+    let obstacleMeshes = []; let environmentMeshes = []; 
+    let isFiery = false; let fireFrames = [], currentFireFrame = 0, fireFrameTimer = 0; const FIRE_FPS = 8; 
+    let mixers = []; const velocity = new THREE.Vector3();
+    
+    // Joystick State
+    let joystickMove = { y: 0 };
+    const keys = { up: false, down: false };
+    
+    const interactionPrompt = document.getElementById('interaction-prompt');
+    const easterEggModal = document.getElementById('easter-egg-modal');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const btnOpenShop = document.getElementById('btn-open-shop');
+    const btnOpenPos = document.getElementById('btn-open-pos');
+    const btnCloseEasterEgg = document.getElementById('btn-close-easter-egg');
+    let isMoving = false, isModalOpen = false;
+    let activePrompt = null; let interactionTimeout = null;
+    const clock = new THREE.Clock();
+
+    // Variable to prevent double tap closing the modal instantly
+    let easterEggReadyToClose = false;
+
+    window.onload = function() {
+        try {
+            if (typeof THREE === 'undefined') throw new Error("Three.js Core is missing.");
+            if (typeof THREE.GLTFLoader === 'undefined') throw new Error("GLTFLoader is missing.");
+            
+            initLoadingManager();
+            init3D();
+            init3DUI();
+            animate();
+            
+            // Force first render of UI logic
+            renderShop();
+            sync();
+        } catch (err) {
+            const errLog = document.getElementById('error-log');
+            errLog.style.display = 'block'; errLog.innerHTML += err.message + '<br>'; console.error(err.message);
+        }
+    };
+
+    function init3D() {
+        const container = document.getElementById('canvas-container');
+        scene = new THREE.Scene(); scene.background = new THREE.Color(0xaad8e6);
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.setFocalLength(CAMERA_FOCAL_LENGTH);
+        
+        // iOS Safari has a much tighter WebGL memory budget than desktop/Android,
+        // and a full-res framebuffer (antialias + devicePixelRatio 3 on modern iPhones)
+        // was pushing it over the edge, causing Safari to silently reload the tab.
+        const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        renderer = new THREE.WebGLRenderer({ antialias: !isIOS, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isIOS ? 1.5 : 2));
+        renderer.outputEncoding = StandardColorSpace;
+        container.appendChild(renderer.domElement);
+        
+        createEnvironment(); createCart();
+        window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function applyBakedMaterial(object) {
+        object.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const replaceMaterial = (mat) => {
+                    const map = mat.map || mat.emissiveMap;
+                    if (map) {
+                        map.generateMipmaps = false; map.minFilter = THREE.LinearFilter; map.magFilter = THREE.LinearFilter;
+                        map.wrapS = THREE.ClampToEdgeWrapping; map.wrapT = THREE.ClampToEdgeWrapping; map.needsUpdate = true;
+                    }
+                    return new THREE.MeshBasicMaterial({ map: map, color: map ? 0xffffff : mat.color, transparent: true, alphaTest: 0.8, side: THREE.FrontSide });
+                };
+                if (Array.isArray(child.material)) child.material = child.material.map(replaceMaterial);
+                else child.material = replaceMaterial(child.material);
+            }
+        });
+    }
+
+    function createEnvironment() {
+        const loader = new THREE.GLTFLoader();
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+        loader.setDRACOLoader(dracoLoader);
+        const environmentGroup = new THREE.Group(); scene.add(environmentGroup);
+
+        loader.load('env.glb', function (gltf) {
+            const envModel = gltf.scene; applyBakedMaterial(envModel);
+            envModel.scale.setScalar(ENV_SCALE); envModel.rotation.set(ENV_ROT_X, ENV_ROT_Y, ENV_ROT_Z); envModel.updateMatrixWorld(true);
+
+            if (AUTO_FIT_ENV) {
+                const box = new THREE.Box3().setFromObject(envModel); const center = box.getCenter(new THREE.Vector3());
+                envModel.position.x += (0 - center.x); envModel.position.y += (0 - box.min.y); envModel.position.z += (0 - center.z);
+            }
+            envModel.position.x += ENV_POS_X; envModel.position.y += ENV_POS_Y; envModel.position.z += ENV_POS_Z;
+            envModel.updateMatrixWorld(true);
+
+            envModel.traverse((child) => {
+                if (child.isMesh) {
+                    const name = child.name.toLowerCase();
+                    const isGrass = name.includes('grass') || name.includes('bush') || name.includes('plant') || name.includes('flower') || name.includes('weed') || name.includes('rock') || name.includes('stone');
+                    if(name.includes('1tree') || name.includes('wall') || name.includes('collider') || name.includes('obstacle') || name.includes('bound')) {
+                        obstacleMeshes.push(child); if(name.includes('wall') || name.includes('collider') || name.includes('bound')) child.visible = false;
+                    } else if (name.includes('street') || name.includes('ground')) { 
+                        environmentMeshes.push(child); 
+                    }
+                }
+            });
+
+            environmentGroup.add(envModel); envLoaded = true; 
+
+            loader.load(PROPS_GLB_NAME, function (propsGltf) {
+                const propsModel = propsGltf.scene; applyBakedMaterial(propsModel); envModel.add(propsModel);
+                propsModel.traverse((child) => {
+                    if (child.isMesh) {
+                        const name = child.name.toLowerCase(); let isPropObstacle = false;
+                        if (name.includes('regal') || name.includes('rack') || name.includes('shop')) { clothingRack = child; isPropObstacle = true; }
+                        if (name.includes('poz') || name.includes('cash') || name.includes('checkout')) { posMachine = child; isPropObstacle = true; }
+                        if (name.includes('post') || name.includes('mail') || name.includes('letter')) { postMeshes.push(child); isPropObstacle = true; }
+                        if (name.includes('1tree') || name.includes('collider') || name.includes('obstacle') || name.includes('wall')) {
+                            isPropObstacle = true; if(name.includes('wall') || name.includes('collider')) child.visible = false;
+                        }
+                        const isGrass = name.includes('grass') || name.includes('bush') || name.includes('plant') || name.includes('flower') || name.includes('weed') || name.includes('rock') || name.includes('stone');
+                    
+                    }
+                });
+                propsLoaded = true;
+            });
+        });
+    }
+
+    function fitModelToCart(model) {
+        const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z); if (maxDim === 0) return;
+        model.scale.setScalar(2.5 / maxDim);
+        const scaledBox = new THREE.Box3().setFromObject(model); const center = scaledBox.getCenter(new THREE.Vector3());
+        model.position.x -= center.x; model.position.z -= center.z; model.position.y -= scaledBox.min.y; model.rotation.y = Math.PI / -1; 
+    }
+
+    function fitFireToCart(model) {
+        const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z); if (maxDim === 0) return;
+        model.scale.setScalar(FIRE_SCALE / maxDim);
+        const scaledBox = new THREE.Box3().setFromObject(model); const center = scaledBox.getCenter(new THREE.Vector3());
+        model.position.x -= center.x; model.position.z -= center.z; model.position.y -= scaledBox.min.y; 
+        model.position.x += FIRE_OFFSET_X; model.position.y += FIRE_OFFSET_Y; model.position.z += FIRE_OFFSET_Z; model.rotation.y = Math.PI / 1; 
+    }
+
+    function createCart() {
+        cartGroup = new THREE.Group(); cartGroup.position.set(CART_START_X, CART_POS_Y, CART_START_Z); scene.add(cartGroup);
+        const loader = new THREE.GLTFLoader(); const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/'); loader.setDRACOLoader(dracoLoader);
+
+        loader.load('sabad.glb', function (gltf) {
+            const wrapper = new THREE.Group(); applyBakedMaterial(gltf.scene);
+            gltf.scene.traverse((child) => { if (child.isMesh && (child.name.toLowerCase().includes('wheel_fl') || child.name.toLowerCase().includes('wheel_fr') || child.name.toLowerCase().includes('wheel_bl') || child.name.toLowerCase().includes('wheel_br'))) cartWheels.push(child); });
+            wrapper.add(gltf.scene); normalCartModel = wrapper; fitModelToCart(normalCartModel); cartGroup.add(normalCartModel);
+            if (gltf.animations && gltf.animations.length > 0) { const mixer = new THREE.AnimationMixer(gltf.scene); gltf.animations.forEach((clip) => mixer.clipAction(clip).play()); mixers.push(mixer); }
+        });
+
+        loader.load('seatishe.glb', function (gltf) {
+            const wrapper = new THREE.Group(); applyBakedMaterial(gltf.scene);
+            wrapper.add(gltf.scene); fireCartModel = wrapper; fitFireToCart(fireCartModel); fireCartModel.visible = false; cartGroup.add(fireCartModel);
+            gltf.scene.traverse((child) => { if (child.isMesh && (child.name.toLowerCase().includes('fire') || child.name.toLowerCase().includes('flame'))) { fireFrames.push(child); child.visible = false; } });
+            fireFrames.sort((a, b) => a.name.localeCompare(b.name)); if (fireFrames.length > 0) fireFrames[0].visible = true;
+            if (gltf.animations && gltf.animations.length > 0) { const mixer = new THREE.AnimationMixer(gltf.scene); gltf.animations.forEach((clip) => mixer.clipAction(clip).play()); mixers.push(mixer); }
+        });
+    }
+
+    function init3DUI() {
+        // Keyboard: A, D are also Forward/Backward. X axis movement is completely removed.
+        document.addEventListener('keydown', (e) => { 
+            if(['KeyW', 'ArrowUp', 'KeyD', 'ArrowRight'].includes(e.code)) keys.up = true; 
+            if(['KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft'].includes(e.code)) keys.down = true; 
+        });
+        document.addEventListener('keyup', (e) => { 
+            if(['KeyW', 'ArrowUp', 'KeyD', 'ArrowRight'].includes(e.code)) keys.up = false; 
+            if(['KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft'].includes(e.code)) keys.down = false; 
+        });
+
+        // Touch Joystick (Modern Minimal Circular)
+        const joystick = document.getElementById('modern-joystick');
+        const knob = document.getElementById('modern-knob');
+        let joyActive = false;
+        let joyCenterY = 0;
+
+        if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
+            joystick.style.display = 'block';
+            
+            joystick.addEventListener('touchstart', (e) => {
+                joyActive = true;
+                const rect = joystick.getBoundingClientRect();
+                joyCenterY = rect.top + rect.height / 2;
+                handleJoyMove(e.touches[0].clientY);
+            }, {passive: false});
+
+            document.addEventListener('touchmove', (e) => {
+                // Prevent overscroll pull-to-refresh on mobile when the game is active
+                if (!isModalOpen && e.cancelable) e.preventDefault();
+                if (!joyActive) return;
+                handleJoyMove(e.touches[0].clientY);
+            }, {passive: false});
+
+            document.addEventListener('touchend', () => {
+                if (!joyActive) return;
+                joyActive = false;
+                knob.style.transform = `translate(-50%, -50%)`;
+                joystickMove.y = 0;
+            });
+
+            function handleJoyMove(clientY) {
+                const maxDist = 32; // Limit knob to stay within the circle beautifully
+                let dy = clientY - joyCenterY;
+                dy = Math.max(-maxDist, Math.min(maxDist, dy));
+                knob.style.transform = `translate(-50%, calc(-50% + ${dy}px))`;
+                joystickMove.y = dy / maxDist; 
+            }
+        }
+
+        btnOpenShop.addEventListener('click', openStoreUI);
+        btnOpenPos.addEventListener('click', openCheckoutUI);
+
+        // Easter Egg Logic
+        btnCloseEasterEgg.addEventListener('click', (e) => { 
+            // Prevent accidental double taps closing the modal instantly
+            if (!easterEggReadyToClose) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            easterEggModal.style.display = 'none'; 
+            modalBackdrop.style.display = 'none'; 
+            isModalOpen = false; 
+            checkInteraction(); 
+        });
+
+        const clickRaycaster = new THREE.Raycaster(); const mouseVector = new THREE.Vector2();
+        window.addEventListener('pointerdown', (event) => {
+            if (isModalOpen || postMeshes.length === 0 || !camera) return;
+            if (event.target.tagName === 'BUTTON' || event.target.closest('.modern-pill') || event.target.closest('.action-img-btn') || event.target.closest('#modern-joystick') || event.target.closest('.modern-modal') || event.target.closest('#ecommerce-app')) return;
+            mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1; mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            clickRaycaster.setFromCamera(mouseVector, camera);
+            const intersects = clickRaycaster.intersectObjects(postMeshes, true);
+            if (intersects.length > 0) {
+                if (cartGroup && cartGroup.position.distanceTo(intersects[0].point) < 25.0) {
+                    interactionPrompt.style.display = 'none'; 
+                    modalBackdrop.style.display = 'block'; 
+                    easterEggModal.style.display = 'flex'; 
+                    isModalOpen = true;
+                    
+                    // Add delay before the modal can be closed
+                    easterEggReadyToClose = false;
+                    setTimeout(() => { easterEggReadyToClose = true; }, 400);
+                }
+            }
+        });
+    }
+
+    function checkInteraction() {
+        if(!cartGroup || isModalOpen) {
+            if (activePrompt !== null) {
+                if (interactionTimeout) { clearTimeout(interactionTimeout); interactionTimeout = null; }
+                interactionPrompt.style.display = 'none'; btnOpenShop.style.display = 'none'; btnOpenPos.style.display = 'none';
+                btnOpenShop.classList.remove('pop-animation', 'pop-out-animation'); btnOpenPos.classList.remove('pop-animation', 'pop-out-animation');
+                activePrompt = null;
+            }
+            return;
+        }
+        
+        let distRack = 999; let distPos = 999;
+        if (clothingRack) { const rPos = new THREE.Vector3(); clothingRack.getWorldPosition(rPos); distRack = cartGroup.position.distanceTo(rPos); }
+        if (posMachine) { const pPos = new THREE.Vector3(); posMachine.getWorldPosition(pPos); distPos = cartGroup.position.distanceTo(pPos); }
+        
+        let newPrompt = null;
+        if (distRack < 11) newPrompt = 'shop'; else if (distPos < 7) newPrompt = 'pos';
+        
+        if (newPrompt !== activePrompt) {
+            if (interactionTimeout) { clearTimeout(interactionTimeout); interactionTimeout = null; }
+            if (newPrompt === null) {
+                let targetBtn = (activePrompt === 'shop') ? btnOpenShop : btnOpenPos;
+                if (targetBtn) { targetBtn.classList.remove('pop-animation'); void targetBtn.offsetWidth; targetBtn.classList.add('pop-out-animation'); }
+                interactionTimeout = setTimeout(() => { interactionPrompt.style.display = 'none'; btnOpenShop.style.display = 'none'; btnOpenPos.style.display = 'none'; btnOpenShop.classList.remove('pop-out-animation'); btnOpenPos.classList.remove('pop-out-animation'); }, 300);
+                activePrompt = null;
+            } else {
+                btnOpenShop.style.display = 'none'; btnOpenPos.style.display = 'none'; btnOpenShop.classList.remove('pop-out-animation'); btnOpenPos.classList.remove('pop-out-animation');
+                interactionPrompt.style.display = 'block';
+                let newBtn = (newPrompt === 'shop') ? btnOpenShop : btnOpenPos;
+                newBtn.style.display = 'block'; newBtn.classList.remove('pop-animation'); void newBtn.offsetWidth; newBtn.classList.add('pop-animation');
+                activePrompt = newPrompt;
+            }
+        }
+    }
+
+    function animate() {
+        requestAnimationFrame(animate); if (!cartGroup) return; 
+        const dt = Math.min(clock.getDelta(), 0.1); 
+
+        for (const mixer of mixers) mixer.update(dt);
+        if (isFiery && fireFrames.length > 0) {
+            fireFrameTimer += dt;
+            if (fireFrameTimer > (1 / FIRE_FPS)) {
+                fireFrames[currentFireFrame].visible = false; currentFireFrame = (currentFireFrame + 1) % fireFrames.length; fireFrames[currentFireFrame].visible = true; fireFrameTimer = 0; 
+            }
+        }
+
+        if (!isModalOpen) {
+            let moveZ = 0;
+            if (keys.up) moveZ -= 1; 
+            if (keys.down) moveZ += 1;
+            if (joystickMove.y !== 0) moveZ = joystickMove.y;
+
+            // X movement removed entirely.
+            velocity.x = 0;
+
+            velocity.z += moveZ * 50.0 * dt;
+            velocity.z -= velocity.z * 5.0 * dt; // Friction
+
+            if (Math.abs(velocity.z) < 0.1 && moveZ === 0) velocity.z = 0;
+            
+            // Logic to visually rotate the cart when moving backward
+            let targetSteerAngle = currentSteerAngle;
+            if (velocity.z < -0.1) targetSteerAngle = 0; // Forward (Z negative)
+            else if (velocity.z > 0.1) targetSteerAngle = Math.PI; // Backward (Z positive)
+            
+            let diff = targetSteerAngle - currentSteerAngle;
+            while (diff < -Math.PI) diff += Math.PI * 2; 
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            currentSteerAngle += diff * 12.0 * dt;
+
+            const rayOrigin = cartGroup.position.clone(); rayOrigin.y += 0.5; 
+            
+            // Apply Z-Axis Collision & Limits
+            let testPosZ = cartGroup.position.z + velocity.z * dt;
+            if (Math.abs(velocity.z) > 0.001) {
+                // به جای محاسبه برخورد با تمام اجسام محیط، فقط از محدودیت مختصاتی استفاده کنید
+                const MIN_Z = -100; // انتهای جاده
+                const MAX_Z = 100;  // ابتدای جاده
+                
+                if (testPosZ < MIN_Z || testPosZ > MAX_Z) { 
+                    velocity.z = 0; 
+                    testPosZ = cartGroup.position.z; 
+                }
+            }
+            if (posMachine) {
+                const pPos = new THREE.Vector3(); posMachine.getWorldPosition(pPos);
+                const pozZLimit = pPos.z + 2.5; 
+                if (testPosZ < pozZLimit) { velocity.z = 0; testPosZ = pozZLimit; }
+            }
+            cartGroup.position.z = testPosZ;
+
+            // Follow Ground Height and update rotation
+            if (environmentMeshes.length > 0) {
+                if (!cartInitialSnapped) {
+                    reusableRaycaster.set(new THREE.Vector3(cartGroup.position.x, 100, cartGroup.position.z), downVector);
+                    const intersects = reusableRaycaster.intersectObjects(environmentMeshes, true);
+                    if (intersects.length > 0) {
+                        const hitY = intersects[0].point.y + CART_POS_Y; cartGroup.position.y = hitY; targetCartY = hitY;
+                        if (intersects[0].face) {
+                            const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
+                            const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+                            targetUp.copy(worldNormal); currentUp.copy(worldNormal); 
+                            
+                            const intendedForward = new THREE.Vector3(Math.sin(currentSteerAngle), 0, Math.cos(currentSteerAngle)).normalize();
+                            const right = new THREE.Vector3().crossVectors(currentUp, intendedForward).normalize();
+                            const actualForward = new THREE.Vector3().crossVectors(right, currentUp).normalize();
+                            cartGroup.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, currentUp, actualForward));
+                        }
+                    }
+                    cartInitialSnapped = true; 
+                } else {
+                    raycastTimer += dt;
+                    if (raycastTimer > 0.02) {
+                        reusableRaycaster.set(new THREE.Vector3(cartGroup.position.x, 100, cartGroup.position.z), downVector);
+                        const intersects = reusableRaycaster.intersectObjects(environmentMeshes, true);
+                        if (intersects.length > 0) {
+                            targetCartY = intersects[0].point.y + CART_POS_Y;
+                            if (intersects[0].face) {
+                                const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
+                                targetUp.copy(intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize());
+                            }
+                        }
+                        raycastTimer = 0;
+                    }
+                    cartGroup.position.y += (targetCartY - cartGroup.position.y) * 10.0 * dt;
+                    currentUp.lerp(targetUp, 8.0 * dt).normalize();
+                    
+                    const intendedForward = new THREE.Vector3(Math.sin(currentSteerAngle), 0, Math.cos(currentSteerAngle)).normalize();
+                    const right = new THREE.Vector3().crossVectors(currentUp, intendedForward).normalize();
+                    const actualForward = new THREE.Vector3().crossVectors(right, currentUp).normalize();
+                    cartGroup.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, currentUp, actualForward));
+                }
+            }
+
+            // Animate Wheels Based on Velocity Direction
+            if (Math.abs(velocity.z) > 0.01 && cartWheels.length > 0) {
+                // Since mesh visually rotates 180 degrees when going backward,
+                // the wheels should always spin forward relative to the mesh itself.
+                cartWheels.forEach(wheel => wheel.rotateX((Math.abs(velocity.z) * dt / WHEEL_RADIUS)));
+            }
+
+            
+        } else {
+            velocity.z -= velocity.z * 10.0 * dt;
+            cartGroup.position.z += velocity.z * dt;
+            isMoving = false;
+        }
+
+        // Camera Logic
+        if (!isCameraInitialized && cartGroup) { cameraTargetPos.copy(cartGroup.position); isCameraInitialized = true; }
+        let idealTarget = new THREE.Vector3();
+        if (cartGroup.position.z >= currentCameraLimitMinZ && cartGroup.position.z <= CAMERA_LIMIT_MAX_Z) { idealTarget.copy(cartGroup.position); } 
+        else { idealTarget.set(cameraTargetPos.x, cameraTargetPos.y, THREE.MathUtils.clamp(cartGroup.position.z, currentCameraLimitMinZ, CAMERA_LIMIT_MAX_Z)); }
+        
+        cameraTargetPos.lerp(idealTarget, Math.min(CAMERA_SMOOTH_SPEED * dt, 1.0));
+        camera.position.lerp(new THREE.Vector3(cameraTargetPos.x + CAMERA_DISTANCE * Math.sin(1.466) * Math.sin(1.57), cameraTargetPos.y + CAMERA_DISTANCE * Math.cos(1.466), cameraTargetPos.z + CAMERA_DISTANCE * Math.sin(1.466) * Math.cos(1.57)), Math.min(CAMERA_LERP_SPEED * dt, 1.0));
+        const lookAtTarget = new THREE.Vector3(cameraTargetPos.x, cameraTargetPos.y + CAMERA_TARGET_Y_OFFSET, cameraTargetPos.z);
+        camera.lookAt(lookAtTarget);
+
+        checkInteraction();
+        renderer.render(scene, camera);
+
+    }
+
+    function onWindowResize() {
+        CAMERA_DISTANCE = calculateCameraDistance(); currentCameraLimitMinZ = calculateCameraMinZ(); 
+        camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+</script>
+</body>
+</html>

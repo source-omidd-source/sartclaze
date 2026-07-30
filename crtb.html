@@ -1,0 +1,1196 @@
+meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Hot-Rod Clay Shopping Site</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+    
+    <!-- Post Processing for Depth of Field (DoF) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/BokehShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/BokehPass.js"></script>
+    
+    <!-- Nipple.js for Virtual Joystick -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.0/nipplejs.min.js"></script>
+
+    <style>
+        body, html {
+            margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;
+            background-color: #87CEEB; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; touch-action: none;
+        }
+        
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 150px; height: 150px; pointer-events: auto; display: none; z-index: 10 !important; }
+
+        .clay-panel {
+            background: #f4ecd8; border-radius: 20px; pointer-events: auto;
+            box-shadow: inset -5px -5px 10px rgba(0,0,0,0.1), inset 5px 5px 10px rgba(255,255,255,0.8), 5px 5px 15px rgba(0,0,0,0.2);
+            border: 2px solid #e0d5ba;
+        }
+
+        #controls-help { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 10px; pointer-events: none; font-size: 14px; }
+
+        .modern-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.05);
+            z-index: 50; font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: none; pointer-events: auto;
+        }
+
+        .modern-pill {
+            background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            color: #111827; border-radius: 9999px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            pointer-events: auto; cursor: pointer; transition: all 0.2s ease;
+        }
+        .modern-pill:hover { transform: scale(1.05); }
+
+        #modal-backdrop { position: absolute; inset: 0; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 40; display: none; pointer-events: auto; }
+        #interaction-prompt { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
+
+        #error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; }
+        
+        .size-btn.active { background-color: #000; color: #fff; border-color: #000; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e5e7eb; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #d1d5db; }
+
+        .slider-btn {
+            background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(4px); border-radius: 50%;
+            width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .group:hover .slider-btn { opacity: 1; }
+        .slider-btn:hover { background: rgba(255, 255, 255, 0.95); transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+    <div id="intro-screen" class="absolute inset-0 z-[9999] bg-[#050505] overflow-hidden transition-opacity duration-1000 pointer-events-auto">
+        <div id="intro-bg" class="absolute inset-0 z-0 bg-[url('BG.jpg')] bg-cover bg-center filter blur-[1px] brightness-75 scale-105 opacity-0 transition-opacity duration-1000"></div>
+        <div id="start-ui-container" class="absolute left-0 right-0 z-10 flex flex-col items-center justify-center w-full pointer-events-none transition-all duration-1000 opacity-0 translate-y-6">
+            <img id="btn-start-experience" src="start.png" alt="Start" 
+                 class="cursor-pointer transition-transform duration-300 drop-shadow-lg pointer-events-auto"
+                 onerror="this.src=''; this.alt='START'; this.className='text-white/80 hover:text-white text-sm font-light tracking-[0.4em] uppercase transition-all duration-300 cursor-pointer drop-shadow-md pb-1 border-b border-transparent hover:border-white/50 pointer-events-auto';">
+            
+            <div id="loading-container" class="hidden flex-col items-center gap-3 w-40 pointer-events-none mt-6">
+                <div class="text-white/70 text-[9px] font-light tracking-[0.2em] uppercase">Loading...</div>
+                <div class="w-full h-[1px] bg-white/20 overflow-hidden rounded-full">
+                    <div id="loading-bar-fill" class="h-full bg-white/90 w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+        </div>
+        <div id="error-log" class="absolute top-5 left-5 z-20 text-red-500 bg-white/90 p-4 rounded-lg text-xs font-mono hidden"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div class="absolute top-5 left-5 flex items-center gap-3 pointer-events-auto">
+            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-black shadow-sm overflow-hidden">
+                <svg class="w-7 h-7 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            </div>
+            <span class="font-bold text-lg text-gray-900 drop-shadow-md">aboljavan</span>
+        </div>
+
+        <div class="absolute top-5 right-5 flex items-center gap-4 pointer-events-auto">
+            <span id="hud-amount" class="font-bold text-sm text-gray-800 tracking-wider">amount: $0</span>
+            <div class="relative cursor-pointer hover:scale-105 transition-transform">
+                <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-md">
+                    <svg class="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </div>
+                <div id="hud-cart-badge" class="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-transparent shadow-sm">0</div>
+            </div>
+        </div>
+
+        <img src="cartblaze.png" class="absolute bottom-5 right-5 w-32 pointer-events-none opacity-90 drop-shadow-md" alt="Cart Blaze" onerror="this.style.display='none'">
+        <div class="absolute bottom-5 left-5 font-semibold text-gray-100 drop-shadow-md pointer-events-none tracking-wider text-sm">cartblaze.store</div>
+
+        <div id="joystick-zone"></div>
+        <div id="modal-backdrop"></div>
+
+        <div id="interaction-prompt">
+            <button id="btn-open-shop" class="modern-pill px-6 py-3 text-sm font-bold tracking-wide">Inspect Rack</button>
+            <button id="btn-open-pos" class="modern-pill px-6 py-3 text-sm font-bold tracking-wide" style="display: none;">Checkout</button>
+        </div>
+
+        <!-- Shopping Modal -->
+        <div id="shopping-modal" class="modern-modal flex-col p-4 md:p-8 w-[95%] max-w-[900px] max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 w-full border-b border-gray-100 pb-3 shrink-0">
+                <img src="store.png" alt="Store" class="h-14 md:h-20 object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <h2 class="text-3xl font-black italic tracking-widest text-gray-800 hidden" style="font-family: impact, sans-serif;">STORE</h2>
+                <span id="modal-amount" class="font-bold text-sm md:text-lg text-gray-800 tracking-wider">amount: $0</span>
+            </div>
+            <div id="dynamic-products-container" class="flex flex-wrap justify-center gap-6 w-full overflow-y-auto pb-2 custom-scrollbar"></div>
+            <div class="flex w-full gap-3 mt-4 pt-3 border-t border-gray-100 shrink-0">
+                <button id="btn-close-shop" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-800 font-semibold hover:bg-gray-200 transition text-base md:text-lg">Cancel</button>
+                <button id="btn-checkout" class="flex-1 py-3 rounded-full bg-black text-white font-semibold hover:bg-gray-800 transition shadow-lg text-base md:text-lg">Add to Cart</button>
+            </div>
+        </div>
+
+        <!-- POS Modal -->
+        <div id="pos-modal" class="modern-modal flex-col items-center p-8 w-[90%] max-w-[400px] text-center">
+            <div class="w-16 h-16 bg-black rounded-full flex items-center justify-center mb-6 shadow-md">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-2 text-gray-900">Checkout</h2>
+            <p class="mb-8 text-gray-500 text-sm">Do you want to complete your purchase?</p>
+            <div class="flex w-full gap-3">
+                <button id="btn-close-pos" class="flex-1 py-3 rounded-full bg-gray-100 text-gray-800 font-semibold hover:bg-gray-200 transition">Cancel</button>
+                <button id="btn-confirm-pay" class="flex-1 py-3 rounded-full bg-black text-white font-semibold hover:bg-gray-800 transition">Pay Now</button>
+            </div>
+        </div>
+
+        <!-- Easter Egg Modal -->
+        <div id="easter-egg-modal" class="modern-modal flex-col items-center p-8 w-[90%] max-w-[400px] text-center">
+            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6 shadow-md">
+                <span class="text-3xl">🎉</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-2 text-purple-600">ایستر اگ!</h2>
+            <p class="mb-8 text-gray-500 text-sm">شما راز مخفی این پست را پیدا کردید!</p>
+            <button id="btn-close-easter-egg" class="w-full py-3 rounded-full bg-purple-600 text-white font-semibold hover:bg-purple-800 transition">عالیه!</button>
+        </div>
+        
+        <audio id="cart-squeak" src="https://cdn.freesound.org/previews/175/175409_3158652-lq.mp3" loop preload="auto"></audio>
+    </div>
+
+    <script>
+        // ==========================================
+        // تنظیمات دوربین و عمق میدان
+        // ==========================================
+        const CAMERA_FOCAL_LENGTH = 100;
+        const CAMERA_DISTANCE = 70;
+        const CAMERA_ANGLE_H_DEG = 90; 
+        const CAMERA_ANGLE_V_DEG = 85; 
+        const CAMERA_TARGET_Y_OFFSET = 4; 
+        const CAMERA_LERP_SPEED = 100.0; 
+        
+        const ENABLE_DOF = false;         
+        const DOF_AUTO_FOCUS = true;     
+        const DOF_MANUAL_FOCUS = 10;   
+        const DOF_APERTURE = 0.008;      
+        const DOF_MAX_BLUR = 0.005;      
+
+        // ==========================================
+        // تنظیمات محیط و اشیاء
+        // ==========================================
+        const ENV_POS_X = 0; const ENV_POS_Y = -6; const ENV_POS_Z = 0;
+        const ENV_ROT_X_DEG = 0; const ENV_ROT_Y_DEG = 180; const ENV_ROT_Z_DEG = 0;
+        
+        const ENV_ROT_X = ENV_ROT_X_DEG * (Math.PI / 180); 
+        const ENV_ROT_Y = ENV_ROT_Y_DEG * (Math.PI / 180); 
+        const ENV_ROT_Z = ENV_ROT_Z_DEG * (Math.PI / 180);
+        
+        const ENV_SCALE = 0.5; 
+        const AUTO_FIT_ENV = true; 
+        const CART_POS_Y = 0.1;
+        
+        // مختصات شروع حرکت سبد 
+        const CART_START_X = 12;
+        const CART_START_Z = 20;
+
+        // نام فایلی که شامل درخت‌ها، بوته‌ها، رگال و دستگاه پز است
+        const PROPS_GLB_NAME = 'props.glb';
+        
+        const START_IMAGE_WIDTH = 320; const START_IMAGE_BOTTOM = 15; const START_IMAGE_HOVER_SCALE = 1.05;
+        const StandardColorSpace = THREE.sRGBEncoding;
+        // ==========================================
+        // متغیرهای فیزیک، سبد و برخورد (اصلاح شده به سیستم Raycast)
+        // ==========================================
+        let raycastTimer = 0;               
+        let currentSteerAngle = 0; 
+        let currentUp = new THREE.Vector3(0, 1, 0); 
+        let targetUp = new THREE.Vector3(0, 1, 0); 
+
+        let targetCartY = CART_POS_Y;       
+        const reusableRaycaster = new THREE.Raycaster(); 
+        const downVector = new THREE.Vector3(0, -1, 0);  
+        
+        let composer, bokehPass;
+        let cartInitialSnapped = false; 
+
+        function applyStartSettings() {
+            const container = document.getElementById('start-ui-container');
+            const btn = document.getElementById('btn-start-experience');
+            if (container) container.style.bottom = START_IMAGE_BOTTOM + '%';
+            if (btn) {
+                btn.style.width = START_IMAGE_WIDTH + 'px';
+                btn.style.height = 'auto'; 
+                btn.onmouseenter = () => { if(!isStartClicked) btn.style.transform = `scale(${START_IMAGE_HOVER_SCALE})`; };
+                btn.onmouseleave = () => { if(!isStartClicked) btn.style.transform = 'scale(1)'; };
+                
+                btn.onclick = () => {
+                    isStartClicked = true;
+                    btn.style.opacity = '0';
+                    setTimeout(() => btn.style.display = 'none', 300);
+                    
+                    if(isEngineLoaded) {
+                        startGame();
+                    } else {
+                        const loadingContainer = document.getElementById('loading-container');
+                        if (loadingContainer) {
+                            loadingContainer.style.display = 'flex';
+                            loadingContainer.classList.remove('hidden');
+                        }
+                    }
+                };
+            }
+        }
+        
+        function preloadIntroAssets() {
+            const bgImg = new Image();
+            bgImg.src = 'BG.jpg';
+            const introBg = document.getElementById('intro-bg');
+            const startUI = document.getElementById('start-ui-container');
+            const revealUI = () => {
+                if (introBg) introBg.classList.remove('opacity-0');
+                setTimeout(() => { if (startUI) startUI.classList.remove('opacity-0', 'translate-y-6'); }, 500);
+            };
+            bgImg.onload = revealUI;
+            bgImg.onerror = revealUI; 
+        }
+
+        applyStartSettings(); 
+        preloadIntroAssets();
+
+        let isEngineLoaded = false; let isStartClicked = false;
+        let envLoaded = false; let propsLoaded = false;
+
+        function initLoadingManager() {
+            THREE.DefaultLoadingManager.onLoad = function () {
+                isEngineLoaded = true;
+                if(isStartClicked) startGame();
+            };
+            THREE.DefaultLoadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
+                const progress = (itemsLoaded / itemsTotal) * 100;
+                const fill = document.getElementById('loading-bar-fill');
+                if (fill) fill.style.width = progress + '%';
+            };
+            THREE.DefaultLoadingManager.onError = function ( url ) {
+                console.warn('Error loading asset:', url);
+                isEngineLoaded = true; 
+                if(isStartClicked) startGame();
+            };
+        }
+
+        function startGame() {
+            const intro = document.getElementById('intro-screen');
+            if(intro) {
+                intro.style.opacity = '0';
+                setTimeout(() => { intro.style.display = 'none'; }, 1000); 
+            }
+        }
+
+        const storeProducts = [
+            { id: 1, price: 60, images: ['products/tshirt1.jpg', 'products/tshirt11.jpg', 'products/tshirt12.jpg'] },
+            { id: 2, price: 60, images: ['products/tshirt2.jpg', 'products/tshirt21.jpg'] }
+        ];
+
+        let currentImageIndexes = {}; let isTransitioning = {}; let tempQuantities = {};
+        let currentSizes = {}; let totalCartAmount = 0; let totalCartItems = 0;
+
+        function initProducts() {
+            const container = document.getElementById('dynamic-products-container');
+            container.innerHTML = '';
+            
+            storeProducts.forEach(p => {
+                tempQuantities[p.id] = { 'M': 0, 'L': 0, 'XL': 0 }; 
+                currentSizes[p.id] = 'M';
+                currentImageIndexes[p.id] = 1; 
+                isTransitioning[p.id] = false;
+                
+                const len = p.images.length;
+                let sliderContent = '';
+                if (len > 1) {
+                    const firstImg = p.images[0];
+                    const lastImg = p.images[len - 1];
+                    sliderContent = `
+                        <div class="w-full h-full shrink-0 relative bg-gray-100"><img src="${lastImg}" class="w-full h-full object-cover"></div>
+                        ${p.images.map(img => `<div class="w-full h-full shrink-0 relative bg-gray-100"><img src="${img}" class="w-full h-full object-cover"></div>`).join('')}
+                        <div class="w-full h-full shrink-0 relative bg-gray-100"><img src="${firstImg}" class="w-full h-full object-cover"></div>
+                    `;
+                } else {
+                    sliderContent = `<div class="w-full h-full shrink-0 relative bg-gray-100"><img src="${p.images[0]}" class="w-full h-full object-cover"></div>`;
+                }
+
+                const productHTML = `
+                    <div class="flex flex-col items-center w-full max-w-[260px]">
+                        <div class="w-full aspect-square bg-white border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-sm hover:shadow-lg transition-all relative group cursor-pointer"
+                             onmouseenter="hoverSlider(${p.id}, ${len})"
+                             onmouseleave="resetSlider(${p.id}, ${len})">
+                            <div id="slider-track-${p.id}" class="flex w-full h-full transition-transform duration-300 ease-in-out" style="transform: translateX(${len > 1 ? '-100%' : '0%'});">
+                                ${sliderContent}
+                            </div>
+                            <div class="absolute left-2 top-1/2 -translate-y-1/2 slider-btn z-30 ${len > 1 ? 'flex' : 'hidden'}" onclick="slideImage(event, ${p.id}, -1, ${len})">
+                                <svg class="w-4 h-4 text-gray-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </div>
+                            <div class="absolute right-2 top-1/2 -translate-y-1/2 slider-btn z-30 ${len > 1 ? 'flex' : 'hidden'}" onclick="slideImage(event, ${p.id}, 1, ${len})">
+                                <svg class="w-4 h-4 text-gray-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between w-full px-1 mt-3">
+                            <div class="font-extrabold text-lg text-gray-800">$${p.price}</div>
+                            <div class="flex items-center gap-2 md:gap-3">
+                                <div class="flex gap-1.5 md:gap-2">
+                                    ${['M', 'L', 'XL'].map(size => `
+                                        <div class="relative flex items-center justify-center">
+                                            <button id="btn-size-${p.id}-${size}" class="size-btn ${size === 'M' ? 'active bg-black text-white' : 'bg-white text-black'} w-6 h-6 md:w-7 md:h-7 rounded-full border border-gray-300 text-[10px] md:text-xs font-semibold hover:bg-black hover:text-white transition-colors flex items-center justify-center" onclick="selectSize(${p.id}, '${size}')">${size}</button>
+                                            <span id="badge-${p.id}-${size}" class="absolute -top-1.5 -right-1.5 bg-green-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center scale-0 transition-transform duration-200">0</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="flex items-center justify-between bg-gray-50 rounded-full p-0.5 border border-gray-200">
+                                    <button class="w-6 h-6 md:w-7 md:h-7 rounded-full bg-white shadow-sm font-bold text-gray-600 hover:bg-gray-100 flex items-center justify-center text-sm leading-none pb-0.5" onclick="changeQty(${p.id}, -1)">-</button>
+                                    <span id="qty-${p.id}" class="font-bold w-4 md:w-5 text-center text-xs text-gray-800">0</span>
+                                    <button class="w-6 h-6 md:w-7 md:h-7 rounded-full bg-white shadow-sm font-bold text-gray-600 hover:bg-gray-100 flex items-center justify-center text-sm leading-none pb-0.5" onclick="changeQty(${p.id}, 1)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += productHTML;
+            });
+        }
+
+        window.slideImage = function(event, productId, direction, len) {
+            event.stopPropagation();
+            if (len <= 1 || isTransitioning[productId]) return;
+            let visualIndex = currentImageIndexes[productId];
+            visualIndex += direction;
+            
+            currentImageIndexes[productId] = visualIndex;
+            const track = document.getElementById(`slider-track-${productId}`);
+            
+            if (track) {
+                track.style.transition = 'transform 300ms ease-in-out';
+                track.style.transform = `translateX(-${visualIndex * 100}%)`;
+                isTransitioning[productId] = true;
+                
+                if (visualIndex === 0) {
+                    setTimeout(() => {
+                        currentImageIndexes[productId] = len;
+                        track.style.transition = 'none';
+                        track.style.transform = `translateX(-${len * 100}%)`;
+                        isTransitioning[productId] = false;
+                    }, 300);
+                } else if (visualIndex === len + 1) {
+                    setTimeout(() => {
+                        currentImageIndexes[productId] = 1;
+                        track.style.transition = 'none';
+                        track.style.transform = `translateX(-100%)`;
+                        isTransitioning[productId] = false;
+                    }, 300);
+                } else {
+                    setTimeout(() => { isTransitioning[productId] = false; }, 300);
+                }
+            }
+        };
+
+        window.hoverSlider = function(productId, len) {
+            if (len > 1 && currentImageIndexes[productId] === 1 && !isTransitioning[productId]) {
+                currentImageIndexes[productId] = 2;
+                const track = document.getElementById(`slider-track-${productId}`);
+                if (track) {
+                    track.style.transition = 'transform 300ms ease-in-out';
+                    track.style.transform = `translateX(-200%)`;
+                }
+            }
+        };
+
+        window.resetSlider = function(productId, len) {
+            if (len > 1 && !isTransitioning[productId]) {
+                currentImageIndexes[productId] = 1;
+                const track = document.getElementById(`slider-track-${productId}`);
+                if (track) {
+                    track.style.transition = 'transform 300ms ease-in-out';
+                    track.style.transform = `translateX(-100%)`;
+                }
+            }
+        };
+
+        window.selectSize = function(productId, size) {
+            currentSizes[productId] = size;
+            ['M', 'L', 'XL'].forEach(s => {
+                const btn = document.getElementById(`btn-size-${productId}-${s}`);
+                if (btn) {
+                    if (s === size) btn.classList.add('active', 'bg-black', 'text-white');
+                    else btn.classList.remove('active', 'bg-black', 'text-white');
+                }
+            });
+            document.getElementById(`qty-${productId}`).innerText = tempQuantities[productId][size];
+        };
+
+        function updateModalAmountLive() {
+            let tempTotal = 0;
+            storeProducts.forEach(p => {
+                const totalProductQty = tempQuantities[p.id].M + tempQuantities[p.id].L + tempQuantities[p.id].XL;
+                tempTotal += totalProductQty * p.price;
+            });
+            document.getElementById('modal-amount').innerText = `amount: $${totalCartAmount + tempTotal}`;
+        }
+
+        window.changeQty = function(productId, delta) {
+            const activeSize = currentSizes[productId];
+            let newQty = tempQuantities[productId][activeSize] + delta;
+            if (newQty < 0) newQty = 0;
+            
+            tempQuantities[productId][activeSize] = newQty;
+            document.getElementById(`qty-${productId}`).innerText = newQty;
+            
+            const badge = document.getElementById(`badge-${productId}-${activeSize}`);
+            if (badge) {
+                badge.innerText = newQty;
+                if (newQty > 0) {
+                    badge.classList.remove('scale-0');
+                    badge.classList.add('scale-100');
+                } else {
+                    badge.classList.remove('scale-100');
+                    badge.classList.add('scale-0');
+                }
+            }
+            updateModalAmountLive();
+        };
+
+        function updateHUD() {
+            document.getElementById('hud-amount').innerText = `amount: $${totalCartAmount}`;
+            document.getElementById('hud-cart-badge').innerText = totalCartItems;
+        }
+
+        const FIRE_OFFSET_X = 0.2; const FIRE_OFFSET_Y = 0.9; const FIRE_OFFSET_Z = 0;    
+        const FIRE_SCALE = 2.4;     
+
+        function showError(msg) {
+            const errLog = document.getElementById('error-log');
+            errLog.style.display = 'block';
+            errLog.innerHTML += msg + '<br>';
+            console.error(msg);
+        }
+
+        let scene, camera, renderer, cartGroup, normalCartModel, fireCartModel;
+        
+        let clothingRack = null; 
+        let posMachine = null;
+        let postMachine = null; // برای ایستر اگ
+        
+        // سیستم لیزری (Raycast) به جای Box
+        let obstacleMeshes = []; 
+        let environmentMeshes = []; 
+        
+        let isFiery = false;
+        let fireFrames = [], currentFireFrame = 0, fireFrameTimer = 0;
+        const FIRE_FPS = 8; 
+        
+        let mixers = [];
+        const velocity = new THREE.Vector3();
+        
+        const keys = { up: false, left: false, down: false, right: false };
+        let joystickMove = { x: 0, y: 0 };
+        
+        const interactionPrompt = document.getElementById('interaction-prompt');
+        const shoppingModal = document.getElementById('shopping-modal');
+        const posModal = document.getElementById('pos-modal');
+        const easterEggModal = document.getElementById('easter-egg-modal');
+        
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const btnOpenShop = document.getElementById('btn-open-shop');
+        const btnOpenPos = document.getElementById('btn-open-pos');
+        const btnCheckout = document.getElementById('btn-checkout');
+        const btnCloseShop = document.getElementById('btn-close-shop');
+        const btnConfirmPay = document.getElementById('btn-confirm-pay');
+        const btnClosePos = document.getElementById('btn-close-pos');
+        const btnCloseEasterEgg = document.getElementById('btn-close-easter-egg');
+        
+        const cartSqueakAudio = document.getElementById('cart-squeak');
+        cartSqueakAudio.volume = 0.8;
+        let isMoving = false, isModalOpen = false;
+
+        const clock = new THREE.Clock();
+
+        window.onload = function() {
+            try {
+                if (typeof THREE === 'undefined') throw new Error("Three.js Core is missing.");
+                if (typeof THREE.GLTFLoader === 'undefined') throw new Error("GLTFLoader is missing.");
+                if (typeof THREE.DRACOLoader === 'undefined') throw new Error("DRACOLoader is missing.");
+                
+                initLoadingManager();
+                initProducts();
+                init3D();
+                initUI();
+                animate();
+
+            } catch (err) {
+                showError("Fatal error: " + err.message);
+            }
+        };
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaad8e6);
+            //scene.fog = new THREE.Fog(0xaad8e6, 20, 10);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.setFocalLength(CAMERA_FOCAL_LENGTH);
+            
+            const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+            renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            const pixelRatio = Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2);
+            renderer.setPixelRatio(pixelRatio);
+            
+            renderer.outputEncoding = StandardColorSpace;
+            container.appendChild(renderer.domElement);
+            
+            if (ENABLE_DOF) {
+                composer = new THREE.EffectComposer(renderer);
+                composer.setPixelRatio(pixelRatio);
+                
+                const renderPass = new THREE.RenderPass(scene, camera);
+                composer.addPass(renderPass);
+
+                bokehPass = new THREE.BokehPass(scene, camera, {
+                    focus: DOF_MANUAL_FOCUS,
+                    aperture: DOF_APERTURE,
+                    maxblur: DOF_MAX_BLUR,
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                });
+                composer.addPass(bokehPass);
+            }
+            
+            createEnvironment();
+            createCart();
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        // ==========================================
+        // این تابع اصلاح شد تا Mipmapping را خاموش کند
+        // و مشکل خطوط و باگ‌های تکسچرهای بیک‌شده برطرف شود.
+        // ==========================================
+        function applyBakedMaterial(object) {
+            object.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.material) {
+                        const replaceMaterial = (mat) => {
+                            const map = mat.map || mat.emissiveMap;
+                            if (map) {
+                                map.generateMipmaps = false;
+                                map.minFilter = THREE.LinearFilter; // بازگشت به Linear برای نرمی
+                                map.magFilter = THREE.LinearFilter;
+                                map.wrapS = THREE.ClampToEdgeWrapping;
+                                map.wrapT = THREE.ClampToEdgeWrapping;
+                                map.needsUpdate = true;
+                            }
+                            
+                            // اصلاح اصلی برای حذف خطوط لبه:
+                            // استفاده از AlphaTest برای حذف پیکسل‌های نیمه‌شفاف حاشیه
+                            return new THREE.MeshBasicMaterial({
+                                map: map,
+                                color: map ? 0xffffff : mat.color,
+                                transparent: true, // همیشه شفافیت را فعال نگه می‌داریم
+                                alphaTest: 0.8,    // این مقدار بحرانی است: پیکسل‌های با شفافیت زیر 0.5 حذف می‌شوند
+                                side: THREE.FrontSide
+                            });
+                        };
+                        
+                        if (Array.isArray(child.material)) child.material = child.material.map(replaceMaterial);
+                        else child.material = replaceMaterial(child.material);
+                    }
+                }
+            });
+        }
+
+        function createEnvironment() {
+            const loader = new THREE.GLTFLoader();
+            const dracoLoader = new THREE.DRACOLoader();
+            dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+            loader.setDRACOLoader(dracoLoader);
+
+            const environmentGroup = new THREE.Group();
+            scene.add(environmentGroup);
+
+            loader.load('env.glb', function (gltf) {
+                const envModel = gltf.scene;
+                applyBakedMaterial(envModel);
+
+                envModel.scale.setScalar(ENV_SCALE);
+                envModel.rotation.set(ENV_ROT_X, ENV_ROT_Y, ENV_ROT_Z);
+                envModel.updateMatrixWorld(true);
+
+                if (AUTO_FIT_ENV) {
+                    const box = new THREE.Box3().setFromObject(envModel);
+                    const center = box.getCenter(new THREE.Vector3());
+                    
+                    envModel.position.x += (0 - center.x);
+                    envModel.position.y += (0 - box.min.y); 
+                    envModel.position.z += (0 - center.z);
+                }
+
+                envModel.position.x += ENV_POS_X;
+                envModel.position.y += ENV_POS_Y;
+                envModel.position.z += ENV_POS_Z;
+
+                envModel.updateMatrixWorld(true);
+
+                envModel.traverse((child) => {
+                    if (child.isMesh) {
+                        const name = child.name.toLowerCase();
+                        // بررسی سنگ‌ها و علف‌ها برای رد شدن سبد از درونشان
+                        const isGrass = name.includes('grass') || name.includes('bush') || name.includes('plant') || name.includes('flower') || name.includes('weed') || name.includes('rock') || name.includes('stone');
+                        
+                        // اضافه کردن به سیستم مانع (برای دیوارها، درخت‌ها و غیره)
+                        if(name.includes('1tree') || name.includes('wall') || name.includes('collider') || name.includes('obstacle') || name.includes('bound')) {
+                            obstacleMeshes.push(child);
+                            
+                            // نامرئی کردن دیوارهای نامرئی در بازی
+                            if(name.includes('wall') || name.includes('collider') || name.includes('bound')) {
+                                child.visible = false;
+                            }
+                        } else if (!isGrass) {
+                            environmentMeshes.push(child);
+                        }
+                    }
+                });
+
+                environmentGroup.add(envModel);
+                envLoaded = true; 
+
+                // --- لود کردن فایل ترکیبی اشیاء ---
+                loader.load(PROPS_GLB_NAME, function (propsGltf) {
+                    const propsModel = propsGltf.scene;
+                    applyBakedMaterial(propsModel);
+                    
+                    envModel.add(propsModel);
+
+                    propsModel.traverse((child) => {
+                        if (child.isMesh) {
+                            const name = child.name.toLowerCase();
+                            
+                            let isPropObstacle = false;
+                            
+                            if (name.includes('regal') || name.includes('rack') || name.includes('shop')) {
+                                clothingRack = child;
+                                isPropObstacle = true;
+                            }
+                            if (name.includes('pos') || name.includes('cash') || name.includes('checkout')) {
+                                posMachine = child;
+                                isPropObstacle = true;
+                            }
+                            // ایستر اگ (Post)
+                            if (name.includes('post')) {
+                                postMachine = child;
+                                isPropObstacle = true;
+                            }
+                            if (name.includes('1tree') || name.includes('collider') || name.includes('obstacle') || name.includes('wall')) {
+                                isPropObstacle = true;
+                                if(name.includes('wall') || name.includes('collider')) {
+                                    child.visible = false;
+                                }
+                            }
+                            
+                            const isGrass = name.includes('grass') || name.includes('bush') || name.includes('plant') || name.includes('flower') || name.includes('weed') || name.includes('rock') || name.includes('stone');
+                            
+                            if (isPropObstacle && !isGrass) {
+                                obstacleMeshes.push(child); 
+                            }
+                        }
+                    });
+                    
+                    propsLoaded = true;
+                }, undefined, function (error) {
+                    console.warn(PROPS_GLB_NAME + " didn't load. Error:", error);
+                });
+
+            }, undefined, function (error) {
+                console.warn("env.glb model didn't load.", error);
+            });
+        }
+
+        function fitModelToCart(model) {
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            if (maxDim === 0) return;
+            const scale = 2.5 / maxDim; 
+            model.scale.setScalar(scale);
+
+            const scaledBox = new THREE.Box3().setFromObject(model);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+            model.position.x -= center.x;
+            model.position.z -= center.z;
+            model.position.y -= scaledBox.min.y; 
+            model.rotation.y = Math.PI / 2; 
+        }
+
+        function fitFireToCart(model) {
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            if (maxDim === 0) return;
+            
+            const scale = FIRE_SCALE / maxDim; 
+            model.scale.setScalar(scale);
+
+            const scaledBox = new THREE.Box3().setFromObject(model);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+            model.position.x -= center.x;
+            model.position.z -= center.z;
+            
+            model.position.y -= scaledBox.min.y; 
+            
+            model.position.x += FIRE_OFFSET_X;
+            model.position.y += FIRE_OFFSET_Y;
+            model.position.z += FIRE_OFFSET_Z;
+            
+            model.rotation.y = Math.PI / 2; 
+        }
+
+        function createCart() {
+            cartGroup = new THREE.Group();
+            const wireframeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+            const hitBox = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), wireframeMat);
+            hitBox.position.y = 1; 
+            cartGroup.add(hitBox);
+            
+            cartGroup.position.set(CART_START_X, CART_POS_Y, CART_START_Z);
+            scene.add(cartGroup);
+
+            const loader = new THREE.GLTFLoader();
+            const dracoLoader = new THREE.DRACOLoader();
+            dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+            loader.setDRACOLoader(dracoLoader);
+
+            loader.load('Untitled7.glb', function (gltf) {
+                const wrapper = new THREE.Group();
+                applyBakedMaterial(gltf.scene);
+
+                wrapper.add(gltf.scene);
+                normalCartModel = wrapper;
+                fitModelToCart(normalCartModel);
+                cartGroup.add(normalCartModel);
+                hitBox.visible = false; 
+
+                if (gltf.animations && gltf.animations.length > 0) {
+                    const mixer = new THREE.AnimationMixer(gltf.scene);
+                    gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+                    mixers.push(mixer);
+                }
+            });
+
+            loader.load('seatishe.glb', function (gltf) {
+                const wrapper = new THREE.Group();
+                applyBakedMaterial(gltf.scene);
+
+                wrapper.add(gltf.scene);
+                fireCartModel = wrapper;
+                
+                fitFireToCart(fireCartModel);
+                fireCartModel.visible = false;
+                cartGroup.add(fireCartModel);
+
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh && (child.name.toLowerCase().includes('fire') || child.name.toLowerCase().includes('flame'))) {
+                        fireFrames.push(child);
+                        child.visible = false; 
+                    }
+                });
+
+                fireFrames.sort((a, b) => a.name.localeCompare(b.name));
+                if (fireFrames.length > 0) {
+                    fireFrames[0].visible = true;
+                }
+
+                if (gltf.animations && gltf.animations.length > 0) {
+                    const mixer = new THREE.AnimationMixer(gltf.scene);
+                    gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+                    mixers.push(mixer);
+                }
+            });
+        }
+
+        function initUI() {
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = true;
+                if(e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = true;
+                // تشخیص دکمه‌های A و D (چپ و راست) حذف شد
+            });
+            document.addEventListener('keyup', (e) => {
+                if(e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = false;
+                if(e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = false;
+                // تشخیص دکمه‌های A و D (چپ و راست) حذف شد
+            });
+
+            const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 768);
+            if (isMobile) {
+                document.getElementById('joystick-zone').style.display = 'block';
+                
+                // ۱. ویژگی axis: 'y' اضافه شد تا حرکت ظاهری فقط عمودی شود
+                const options = { 
+                    zone: document.getElementById('joystick-zone'), 
+                    mode: 'static', 
+                    position: { left: '50%', top: '50%' }, 
+                    color: '#f1a23a', 
+                    size: 100,
+                    axis: 'y' 
+                };
+                
+                const manager = nipplejs.create(options);
+                manager.on('move', (evt, data) => { 
+                    // ۲. مقدار x را همیشه 0 قرار می‌دهیم تا حرکت فقط جلو/عقب باشد
+                    joystickMove.x = 0; 
+                    joystickMove.y = Math.sin(data.angle.radian) * Math.min(data.distance / 50, 1); 
+                });
+                manager.on('end', () => { joystickMove.x = 0; joystickMove.y = 0; });
+            }
+
+            btnOpenShop.addEventListener('click', () => { 
+                interactionPrompt.style.display = 'none'; 
+                modalBackdrop.style.display = 'block'; 
+                shoppingModal.style.display = 'flex'; 
+                isModalOpen = true; 
+                updateModalAmountLive();
+            });
+            
+            btnCloseShop.addEventListener('click', () => { 
+                shoppingModal.style.display = 'none'; 
+                modalBackdrop.style.display = 'none'; 
+                isModalOpen = false; 
+                storeProducts.forEach(p => {
+                    tempQuantities[p.id] = { 'M': 0, 'L': 0, 'XL': 0 };
+                    document.getElementById(`qty-${p.id}`).innerText = 0;
+                    
+                    ['M', 'L', 'XL'].forEach(s => {
+                        const badge = document.getElementById(`badge-${p.id}-${s}`);
+                        if(badge) {
+                            badge.classList.remove('scale-100');
+                            badge.classList.add('scale-0');
+                        }
+                    });
+                    
+                    window.resetSlider(p.id, p.images.length);
+                });
+                checkInteraction(); 
+            });
+
+            btnCheckout.addEventListener('click', () => { 
+                let addedAny = false;
+                storeProducts.forEach(p => {
+                    const totalProductQty = tempQuantities[p.id].M + tempQuantities[p.id].L + tempQuantities[p.id].XL;
+                    
+                    if(totalProductQty > 0) {
+                        totalCartAmount += totalProductQty * p.price;
+                        totalCartItems += totalProductQty;
+                        
+                        tempQuantities[p.id] = { 'M': 0, 'L': 0, 'XL': 0 }; 
+                        document.getElementById(`qty-${p.id}`).innerText = '0';
+                        
+                        ['M', 'L', 'XL'].forEach(s => {
+                            const badge = document.getElementById(`badge-${p.id}-${s}`);
+                            if(badge) {
+                                badge.classList.remove('scale-100');
+                                badge.classList.add('scale-0');
+                            }
+                        });
+                        
+                        window.resetSlider(p.id, p.images.length);
+                        addedAny = true;
+                    }
+                });
+
+                if(addedAny) {
+                    updateHUD();
+                    igniteCart();
+                }
+                
+                shoppingModal.style.display = 'none'; 
+                modalBackdrop.style.display = 'none'; 
+                isModalOpen = false; 
+            });
+
+            btnOpenPos.addEventListener('click', () => { interactionPrompt.style.display = 'none'; modalBackdrop.style.display = 'block'; posModal.style.display = 'flex'; isModalOpen = true; });
+            btnClosePos.addEventListener('click', () => { posModal.style.display = 'none'; modalBackdrop.style.display = 'none'; isModalOpen = false; checkInteraction(); });
+            btnConfirmPay.addEventListener('click', () => { 
+                posModal.style.display = 'none'; modalBackdrop.style.display = 'none'; isModalOpen = false; isFiery = false;
+                totalCartAmount = 0;
+                totalCartItems = 0;
+                updateHUD();
+                if (fireCartModel) fireCartModel.visible = false;
+            });
+
+            btnCloseEasterEgg.addEventListener('click', () => {
+                easterEggModal.style.display = 'none';
+                modalBackdrop.style.display = 'none';
+                isModalOpen = false;
+                checkInteraction();
+            });
+
+            // سیستم کلیک روی ایستر اگ (Post)
+            const clickRaycaster = new THREE.Raycaster();
+            const mouseVector = new THREE.Vector2();
+
+            window.addEventListener('pointerdown', (event) => {
+                if (isModalOpen || !postMachine || !camera) return;
+                
+                // نادیده گرفتن کلیک روی رابط کاربری
+                if (event.target.closest('#ui-layer') && !event.target.id.includes('canvas')) return;
+
+                mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                clickRaycaster.setFromCamera(mouseVector, camera);
+
+                const intersects = clickRaycaster.intersectObject(postMachine, true);
+                if (intersects.length > 0) {
+                    const postWorldPos = new THREE.Vector3();
+                    postMachine.getWorldPosition(postWorldPos);
+                    
+                    // فقط اگر کاربر نزدیک به پست باشد مودال باز می‌شود
+                    if (cartGroup && cartGroup.position.distanceTo(postWorldPos) < 10.0) {
+                        interactionPrompt.style.display = 'none';
+                        modalBackdrop.style.display = 'block';
+                        easterEggModal.style.display = 'flex';
+                        isModalOpen = true;
+                    }
+                }
+            });
+        }
+
+        function checkInteraction() {
+            if(!cartGroup || isModalOpen) return;
+            
+            let distRack = 999;
+            let distPos = 999;
+
+            if (clothingRack) {
+                const rPos = new THREE.Vector3();
+                clothingRack.getWorldPosition(rPos);
+                distRack = cartGroup.position.distanceTo(rPos);
+            }
+            if (posMachine) {
+                const pPos = new THREE.Vector3();
+                posMachine.getWorldPosition(pPos);
+                distPos = cartGroup.position.distanceTo(pPos);
+            }
+            
+            interactionPrompt.style.display = 'none'; btnOpenShop.style.display = 'none'; btnOpenPos.style.display = 'none';
+            if (distRack < 11.0) { interactionPrompt.style.display = 'block'; btnOpenShop.style.display = 'block'; } 
+            else if (distPos < 8.0) { interactionPrompt.style.display = 'block'; btnOpenPos.style.display = 'block'; }
+        }
+
+        function igniteCart() {
+            if(isFiery) return;
+            isFiery = true;
+            if (fireCartModel) fireCartModel.visible = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!cartGroup) return; 
+
+            const dt = Math.min(clock.getDelta(), 0.1); 
+
+            for (const mixer of mixers) {
+                mixer.update(dt);
+            }
+
+            if (isFiery && fireFrames.length > 0) {
+                fireFrameTimer += dt;
+                if (fireFrameTimer > (1 / FIRE_FPS)) {
+                    fireFrames[currentFireFrame].visible = false; 
+                    currentFireFrame = (currentFireFrame + 1) % fireFrames.length; 
+                    fireFrames[currentFireFrame].visible = true; 
+                    fireFrameTimer = 0; 
+                }
+            }
+
+            if (!isModalOpen) {
+                let moveX = 0; let moveZ = 0;
+                if (keys.up) moveZ -= 1; if (keys.down) moveZ += 1;
+                if (keys.left) moveX -= 1; if (keys.right) moveX += 1;
+                if (joystickMove.x !== 0 || joystickMove.y !== 0) { moveX = joystickMove.x; moveZ = -joystickMove.y; }
+
+                if (moveX !== 0 || moveZ !== 0) {
+                    const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+                    const dirX = moveX / length;
+                    const dirZ = moveZ / length;
+                    const targetAngle = Math.atan2(dirX, dirZ) + Math.PI;
+                    
+                    let diff = targetAngle - currentSteerAngle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    
+                    currentSteerAngle += diff * 10.0 * dt; 
+                }
+
+                const CART_ACCEL = 50.0;
+                const CART_FRICTION = 5.0;
+
+                velocity.x += moveX * CART_ACCEL * dt;
+                velocity.z += moveZ * CART_ACCEL * dt;
+
+                velocity.x -= velocity.x * CART_FRICTION * dt;
+                velocity.z -= velocity.z * CART_FRICTION * dt;
+
+                if (Math.abs(velocity.x) < 0.1 && moveX === 0) velocity.x = 0;
+                if (Math.abs(velocity.z) < 0.1 && moveZ === 0) velocity.z = 0;
+
+                const cartRadius = 0.4; // شعاع برخورد با اشیاء
+                const rayOrigin = cartGroup.position.clone();
+                rayOrigin.y += 0.5; // پرتاب اشعه از نیم متری زمین برای رد شدن از پستی بلندی‌های کوچک
+                
+                let testPosX = cartGroup.position.x + velocity.x * dt;
+                
+                // سیستم برخورد لیزری برای محور X
+                if (Math.abs(velocity.x) > 0.001) {
+                    const dirX = new THREE.Vector3(Math.sign(velocity.x), 0, 0);
+                    reusableRaycaster.set(rayOrigin, dirX);
+                    const hitsX = reusableRaycaster.intersectObjects(obstacleMeshes, true);
+                    
+                    if (hitsX.length > 0 && hitsX[0].distance < cartRadius) {
+                        velocity.x = 0;
+                        testPosX = cartGroup.position.x;
+                    } else if (testPosX < -100 || testPosX > 100) {
+                        velocity.x = 0;
+                        testPosX = cartGroup.position.x;
+                    }
+                }
+                cartGroup.position.x = testPosX;
+
+                let testPosZ = cartGroup.position.z + velocity.z * dt;
+                
+                // سیستم برخورد لیزری برای محور Z
+                if (Math.abs(velocity.z) > 0.001) {
+                    const dirZ = new THREE.Vector3(0, 0, Math.sign(velocity.z));
+                    reusableRaycaster.set(rayOrigin, dirZ);
+                    const hitsZ = reusableRaycaster.intersectObjects(obstacleMeshes, true);
+                    
+                    if (hitsZ.length > 0 && hitsZ[0].distance < cartRadius) {
+                        velocity.z = 0;
+                        testPosZ = cartGroup.position.z;
+                    } else if (testPosZ < -100 || testPosZ > 100) {
+                        velocity.z = 0;
+                        testPosZ = cartGroup.position.z;
+                    }
+                }
+                cartGroup.position.z = testPosZ;
+
+                // ----- منطق فیزیک سطح (رفع مشکل فرورفتن در زمین) -----
+                if (environmentMeshes.length > 0) {
+                    if (!cartInitialSnapped) {
+                        reusableRaycaster.set(new THREE.Vector3(cartGroup.position.x, 100, cartGroup.position.z), downVector);
+                        const intersects = reusableRaycaster.intersectObjects(environmentMeshes, true);
+                        if (intersects.length > 0) {
+                            const hitY = intersects[0].point.y + CART_POS_Y;
+                            cartGroup.position.y = hitY;
+                            targetCartY = hitY;
+                            
+                            if (intersects[0].face) {
+                                const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
+                                const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+                                targetUp.copy(worldNormal);
+                                currentUp.copy(worldNormal); 
+                                
+                                const intendedForward = new THREE.Vector3(Math.sin(currentSteerAngle), 0, Math.cos(currentSteerAngle)).normalize();
+                                const right = new THREE.Vector3().crossVectors(currentUp, intendedForward).normalize();
+                                const actualForward = new THREE.Vector3().crossVectors(right, currentUp).normalize();
+
+                                const matrix = new THREE.Matrix4();
+                                matrix.makeBasis(right, currentUp, actualForward);
+                                cartGroup.quaternion.setFromRotationMatrix(matrix);
+                            }
+                        }
+                        cartInitialSnapped = true; 
+                    } else {
+                        raycastTimer += dt;
+                        if (raycastTimer > 0.02) {
+                            reusableRaycaster.set(new THREE.Vector3(cartGroup.position.x, 100, cartGroup.position.z), downVector);
+                            const intersects = reusableRaycaster.intersectObjects(environmentMeshes, true);
+                            if (intersects.length > 0) {
+                                targetCartY = intersects[0].point.y + CART_POS_Y;
+
+                                if (intersects[0].face) {
+                                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersects[0].object.matrixWorld);
+                                    const worldNormal = intersects[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
+                                    targetUp.copy(worldNormal);
+                                }
+                            }
+                            raycastTimer = 0;
+                        }
+                        
+                        cartGroup.position.y += (targetCartY - cartGroup.position.y) * 10.0 * dt;
+                        currentUp.lerp(targetUp, 8.0 * dt).normalize();
+
+                        const intendedForward = new THREE.Vector3(Math.sin(currentSteerAngle), 0, Math.cos(currentSteerAngle)).normalize();
+                        const right = new THREE.Vector3().crossVectors(currentUp, intendedForward).normalize();
+                        const actualForward = new THREE.Vector3().crossVectors(right, currentUp).normalize();
+
+                        const matrix = new THREE.Matrix4();
+                        matrix.makeBasis(right, currentUp, actualForward);
+                        cartGroup.quaternion.setFromRotationMatrix(matrix);
+                    }
+                }
+                // ---------------------------------------------------
+
+                const isSpeeding = velocity.lengthSq() > 0.5;
+                if (isSpeeding) {
+                    if (!isMoving) { cartSqueakAudio.play().catch(e => {}); isMoving = true; }
+                } else {
+                    if (isMoving) { cartSqueakAudio.pause(); isMoving = false; }
+                }
+            } else {
+                velocity.x -= velocity.x * 10.0 * dt;
+                velocity.z -= velocity.z * 10.0 * dt;
+                cartGroup.position.x += velocity.x * dt;
+                cartGroup.position.z += velocity.z * dt;
+                if (isMoving) { cartSqueakAudio.pause(); isMoving = false; }
+            }
+
+            const theta = CAMERA_ANGLE_H_DEG * (Math.PI / 180); 
+            const phi = CAMERA_ANGLE_V_DEG * (Math.PI / 180);   
+            
+            const targetCamPos = new THREE.Vector3(
+                cartGroup.position.x + CAMERA_DISTANCE * Math.sin(phi) * Math.sin(theta),
+                cartGroup.position.y + CAMERA_DISTANCE * Math.cos(phi),
+                cartGroup.position.z + CAMERA_DISTANCE * Math.sin(phi) * Math.cos(theta)
+            );
+            
+            camera.position.lerp(targetCamPos, Math.min(CAMERA_LERP_SPEED * dt, 1.0));
+            
+            const lookAtTarget = cartGroup.position.clone();
+            lookAtTarget.y += CAMERA_TARGET_Y_OFFSET;
+            camera.lookAt(lookAtTarget);
+
+            checkInteraction();
+            
+            if (ENABLE_DOF && composer) {
+                if (DOF_AUTO_FOCUS && bokehPass) {
+                    bokehPass.uniforms[ "focus" ].value = camera.position.distanceTo(lookAtTarget);
+                }
+                composer.render();
+            } else {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (ENABLE_DOF && composer) {
+                composer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+    </script>
+</body>
+</html>
