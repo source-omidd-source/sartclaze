@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050505" id="theme-color-meta">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>CARTBLAZE® — VOL.06 CONCRETE SEASON</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rubik+Spray+Paint&display=swap" rel="stylesheet">
@@ -31,8 +35,8 @@
 }
 
 body, html {
-  margin: 0; padding: 0; overflow-x: hidden; width: 100%; height: 100%;
-  background-color: #87CEEB; font-family: 'Inter', system-ui, sans-serif; 
+  margin: 0; padding: 0; overflow-x: hidden; width: 100%; height: 100%; height: 100dvh;
+  background-color: #050505; font-family: 'Inter', system-ui, sans-serif;
   touch-action: none; overscroll-behavior: none; /* جلوگیری از رفرش صفحه در موبایل */
 }
 body.lock { overflow: hidden; }
@@ -40,10 +44,13 @@ body.lock { overflow: hidden; }
 /* 3D Canvas Elements */
 #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+#ui-layer > .absolute[class~="top-3"] { top: calc(0.75rem + env(safe-area-inset-top, 0px)) !important; }
+#ui-layer > .absolute[class~="top-3"][class~="left-5"] { left: calc(1.25rem + env(safe-area-inset-left, 0px)) !important; }
+#ui-layer > .absolute[class~="top-3"][class~="right-5"] { right: calc(1.25rem + env(safe-area-inset-right, 0px)) !important; }
 
 /* Modern Minimal Circular Joystick */
 #modern-joystick {
-    position: absolute; bottom: 35px; left: 35px; width: 120px; height: 120px;
+    position: absolute; bottom: calc(35px + env(safe-area-inset-bottom, 0px)); left: calc(35px + env(safe-area-inset-left, 0px)); width: 120px; height: 120px;
     background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     border-radius: 50%; border: 1px solid rgba(255,255,255,0.4);
     box-shadow: 0 8px 32px rgba(0,0,0,0.1);
@@ -109,7 +116,7 @@ body.lock { overflow: hidden; }
 .disp { font-weight: 800; letter-spacing: -.04em; line-height: .96; text-transform: uppercase; }
 
 /* HEADER */
-#ecommerce-app header { position: fixed; top: 0; left: 0; right: 0; z-index: 80; height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(250,250,247,.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
+#ecommerce-app header { position: fixed; top: 0; left: 0; right: 0; z-index: 80; height: calc(72px + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); display: flex; align-items: center; justify-content: space-between; padding-left: calc(40px + env(safe-area-inset-left, 0px)); padding-right: calc(40px + env(safe-area-inset-right, 0px)); background: rgba(250,250,247,.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
 .logo { display: flex; align-items: center; cursor: pointer; user-select: none; gap: 10px; }
 .logo .lt { font-family: 'Rubik Spray Paint', Impact, sans-serif; font-size: 22px; letter-spacing: .5px; }
 .logo .lt b { color: var(--flame); font-weight: 400; }
@@ -126,7 +133,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 .close-game-btn { font-size: 18px; font-weight: 900; color: var(--flame); background: var(--soft); margin-right: 15px; }
 
 /* VIEWS */
-.view { display: none; padding-top: 72px; min-height: 100vh; animation: vfade .4s var(--ease); }
+.view { display: none; padding-top: calc(72px + env(safe-area-inset-top, 0px)); min-height: 100dvh; animation: vfade .4s var(--ease); }
 .view.on { display: block; }
 @keyframes vfade { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
 .wrap { max-width: 1360px; margin: 0 auto; padding: 0 40px; }
@@ -208,7 +215,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 /* DRAWER */
 .scrim { position: fixed; inset: 0; z-index: 90; background: rgba(16,16,16,.4); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .3s; }
 .scrim.on { opacity: 1; pointer-events: auto; }
-.drawer { position: fixed; top: 10px; right: 10px; bottom: 10px; z-index: 95; width: min(440px, calc(100vw - 20px)); background: var(--card); border-radius: 28px; box-shadow: var(--sh2); transform: translateX(calc(100% + 20px)); transition: transform .45s var(--ease); display: flex; flex-direction: column; overflow: hidden; }
+.drawer { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 95; width: min(440px, calc(100vw - 20px)); background: var(--card); border-radius: 28px; box-shadow: var(--sh2); transform: translateX(calc(100% + 20px)); transition: transform .45s var(--ease); display: flex; flex-direction: column; overflow: hidden; }
 .drawer.on { transform: none; }
 .dhead { display: flex; align-items: center; justify-content: space-between; padding: 24px 26px; border-bottom: 1px solid var(--line); }
 .dhead h3 { font-size: 14px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
@@ -248,7 +255,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,77,0,.5) } 50% { opacity: .55; box-shadow: 0 0 0 6px rgba(255,77,0,0) } }
 
 /* MOBILE */
-.bnav { display: none; position: fixed; bottom: 10px; left: 12px; right: 12px; z-index: 85; height: 58px; background: rgba(16,16,16,.92); backdrop-filter: blur(14px); border-radius: var(--pill); box-shadow: var(--sh2); }
+.bnav { display: none; position: fixed; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); z-index: 85; height: 58px; background: rgba(16,16,16,.92); backdrop-filter: blur(14px); border-radius: var(--pill); box-shadow: var(--sh2); }
 .bnav button { flex: 1; font-size: 9px; font-weight: 800; letter-spacing: 1.2px; color: #8b8b83; }
 .bnav button.on { color: #fff; }
 .mmenu { position: fixed; inset: 0; z-index: 110; background: var(--bg); display: none; flex-direction: column; padding: 86px 26px; }
@@ -264,8 +271,8 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 }
 @media(max-width:720px){
   .wrap { padding: 0 18px; }
-  #ecommerce-app header { padding: 0 16px; height: 62px; }
-  .view { padding-top: 62px; padding-bottom: 84px; }
+  #ecommerce-app header { padding-left: calc(16px + env(safe-area-inset-left, 0px)); padding-right: calc(16px + env(safe-area-inset-right, 0px)); height: calc(62px + env(safe-area-inset-top, 0px)); }
+  .view { padding-top: calc(62px + env(safe-area-inset-top, 0px)); padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
   .burger { display: flex; }
   .bnav { display: flex; }
   .cartbtn .ct { display: none; }
@@ -821,14 +828,21 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             
             // بخش کلیک تغییر کرده تا قفل صدای آیفون باز بشه
             btn.onclick = () => {
-                
-                
-    
+
+                // Try to hide browser chrome (address bar / nav bar) on browsers that support it.
+                // iOS Safari doesn't support the Fullscreen API, so this is a no-op there — harmless.
+                const fsEl = document.documentElement;
+                if (fsEl.requestFullscreen) fsEl.requestFullscreen().catch(() => {});
+                else if (fsEl.webkitRequestFullscreen) fsEl.webkitRequestFullscreen();
+
+                const themeMeta = document.getElementById('theme-color-meta');
+                if (themeMeta) themeMeta.setAttribute('content', '#87CEEB');
+
                 // 2. بقیه کدهای استارت
-                isStartClicked = true; 
+                isStartClicked = true;
                 btn.style.opacity = '0';
                 setTimeout(() => btn.style.display = 'none', 300);
-                
+
                 if(isEngineLoaded) startGame();
                 else document.getElementById('loading-container').classList.remove('hidden');
             };
