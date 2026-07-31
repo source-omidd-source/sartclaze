@@ -41,6 +41,13 @@ body, html {
 }
 body.lock { overflow: hidden; }
 
+/* Kill iOS's long-press text-selection / magnifier callout across the 3D game HUD —
+   holding an arrow button (or anything else) should never trigger text selection. */
+#ui-layer, #ui-layer * , #interaction-prompt, #intro-screen, #intro-screen * {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* 3D Canvas Elements */
 #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
@@ -48,30 +55,40 @@ body.lock { overflow: hidden; }
 #ui-layer > .absolute[class~="top-3"][class~="left-5"] { left: calc(1.25rem + env(safe-area-inset-left, 0px)) !important; }
 #ui-layer > .absolute[class~="top-3"][class~="right-5"] { right: calc(1.25rem + env(safe-area-inset-right, 0px)) !important; }
 
-/* Glass Arrow Move Buttons (replace the joystick) — "liquid glass" pill style, bottom-anchored */
-.move-arrow-btn {
-    position: absolute; bottom: calc(30px + env(safe-area-inset-bottom, 0px));
-    width: 78px; height: 58px;
-    background: linear-gradient(160deg, rgba(255,255,255,0.4), rgba(255,255,255,0.08));
-    backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%);
-    border-radius: 22px; border: 1px solid rgba(255,255,255,0.55);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,.7), inset 0 -10px 16px rgba(255,255,255,.05), 0 12px 26px rgba(0,0,0,0.18);
+/* Glass Rail + big liquid-glass Thumb (forward/backward) — thumb overflows the thin rail */
+.move-joystick {
+    position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
+    width: 108px; height: 26px; border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(26px) saturate(220%); -webkit-backdrop-filter: blur(26px) saturate(220%);
+    border: 1px solid rgba(255,255,255,0.22);
+    box-shadow: inset 0 0 0 0.5px rgba(255,255,255,.35), inset 0 6px 10px -6px rgba(255,255,255,.5), 0 6px 18px rgba(0,0,0,0.16);
     display: none; pointer-events: auto; z-index: 20 !important;
-    align-items: center; justify-content: center; overflow: hidden;
     -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none;
-    transition: transform 0.12s ease, background 0.12s ease;
 }
-/* Glossy top highlight streak for a more "liquid glass" feel */
-.move-arrow-btn::before {
-    content: ''; position: absolute; top: 3px; left: 8%; right: 8%; height: 40%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
-    border-radius: 16px 16px 40px 40px; pointer-events: none;
+/* Subtle liquid-glass grain, like Apple's frosted material texture */
+.move-joystick::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: .1; mix-blend-mode: overlay;
 }
-.move-arrow-btn svg { width: 24px; height: 24px; display: block; position: relative; z-index: 1;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
-.move-arrow-btn.pressed { background: linear-gradient(160deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15)); transform: scale(0.93); }
-#btn-move-back { left: calc(24px + env(safe-area-inset-left, 0px)); }
-#btn-move-forward { right: calc(24px + env(safe-area-inset-right, 0px)); }
+.move-joystick .chev { position: absolute; top: 50%; transform: translateY(-50%); opacity: .38; pointer-events: none; z-index: 1; }
+.move-joystick .chev svg { width: 9px; height: 9px; display: block; }
+.move-joystick .chev.left { left: 9px; }
+.move-joystick .chev.right { right: 9px; }
+/* The thumb: a big glossy liquid-glass orb that rides on top of the thin rail */
+.move-joystick-knob {
+    position: absolute; top: 50%; left: 50%; width: 52px; height: 52px; border-radius: 50%;
+    transform: translate(-50%, -50%) scale(1, 1);
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.95), rgba(255,255,255,.5) 45%, rgba(255,255,255,.22) 75%);
+    backdrop-filter: blur(6px) saturate(180%); -webkit-backdrop-filter: blur(6px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.6);
+    box-shadow: inset 0 2px 4px rgba(255,255,255,1), inset 0 -8px 14px rgba(255,255,255,.15), 0 8px 18px rgba(0,0,0,.22), 0 2px 4px rgba(0,0,0,.12);
+    pointer-events: none; transition: box-shadow .12s ease;
+}
+.move-joystick.dragging .move-joystick-knob { box-shadow: inset 0 2px 4px rgba(255,255,255,1), inset 0 -8px 14px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.28); }
+/* Jelly snap-back when released, like Apple's elastic UI bounce */
+.move-joystick-knob.snap-back { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), box-shadow .12s ease; }
 
 #interaction-prompt { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
 #error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; }
@@ -361,13 +378,12 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         </div>
     </div>
 
-    <!-- Glass Arrow Move Buttons (forward / backward) -->
-    <button id="btn-move-back" class="move-arrow-btn" aria-label="Backward">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-    </button>
-    <button id="btn-move-forward" class="move-arrow-btn" aria-label="Forward">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-    </button>
+    <!-- Glass Capsule Joystick (forward / backward) — modern horizontal slider -->
+    <div id="move-joystick" class="move-joystick" aria-label="Move">
+        <span class="chev left"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></span>
+        <span class="chev right"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+        <div id="move-joystick-knob" class="move-joystick-knob"></div>
+    </div>
 
     <div id="modal-backdrop"></div>
 
@@ -1108,29 +1124,72 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             if(['KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft'].includes(e.code)) keys.down = false; 
         });
 
-        // Glass Arrow Buttons (forward / backward) — replaces the old joystick
-        const btnBack = document.getElementById('btn-move-back');
-        const btnForward = document.getElementById('btn-move-forward');
+        // Glass Capsule Joystick (forward / backward) — horizontal drag slider
+        const moveJoystick = document.getElementById('move-joystick');
+        const moveKnob = document.getElementById('move-joystick-knob');
 
         if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
-            btnBack.style.display = 'flex';
-            btnForward.style.display = 'flex';
+            moveJoystick.style.display = 'block';
 
             document.addEventListener('touchmove', (e) => {
                 // Prevent overscroll pull-to-refresh on mobile when the game is active
                 if (!isModalOpen && e.cancelable) e.preventDefault();
             }, {passive: false});
 
-            const bindHold = (btn, value) => {
-                const press = (e) => { e.preventDefault(); btn.classList.add('pressed'); joystickMove.y = value; };
-                const release = () => { btn.classList.remove('pressed'); if (joystickMove.y === value) joystickMove.y = 0; };
-                btn.addEventListener('pointerdown', press);
-                btn.addEventListener('pointerup', release);
-                btn.addEventListener('pointerleave', release);
-                btn.addEventListener('pointercancel', release);
+            let dragging = false;
+            let trackCenterX = 0;
+            const maxDist = 34;   // true drag range that maps to full speed
+            const extraMax = 8;   // extra px of "jelly" overstretch allowed past maxDist
+
+            // Rubber-band curve: overstretch grows fast at first, then resists — like iOS elastic scroll.
+            const rubberBand = (over) => extraMax * (1 - Math.exp(-over / (extraMax * 0.6)));
+
+            const setKnob = (rawDx) => {
+                const clamped = Math.max(-maxDist, Math.min(maxDist, rawDx));
+                let visualDx = clamped;
+                let stretch = 0;
+                const over = Math.abs(rawDx) - maxDist;
+                if (over > 0) {
+                    const damped = rubberBand(Math.min(over, 80));
+                    visualDx = Math.sign(rawDx) * (maxDist + damped);
+                    stretch = damped / extraMax; // 0..~1
+                }
+                const scaleX = 1 + stretch * 0.16;
+                const scaleY = 1 - stretch * 0.072;
+                moveKnob.style.transform = `translate(calc(-50% + ${visualDx}px), -50%) scale(${scaleX}, ${scaleY})`;
+                return clamped;
             };
-            bindHold(btnForward, -1); // forward = velocity.z decreasing
-            bindHold(btnBack, 1);     // backward = velocity.z increasing
+
+            const handleMove = (clientX) => {
+                const rawDx = clientX - trackCenterX;
+                const clamped = setKnob(rawDx);
+                joystickMove.y = -clamped / maxDist; // drag right = forward, drag left = backward
+            };
+
+            const startDrag = (e) => {
+                e.preventDefault();
+                dragging = true;
+                moveKnob.classList.remove('snap-back');
+                moveJoystick.classList.add('dragging');
+                const rect = moveJoystick.getBoundingClientRect();
+                trackCenterX = rect.left + rect.width / 2;
+                if (moveJoystick.setPointerCapture) moveJoystick.setPointerCapture(e.pointerId);
+                handleMove(e.clientX);
+            };
+            const endDrag = () => {
+                if (!dragging) return;
+                dragging = false;
+                moveJoystick.classList.remove('dragging');
+                moveKnob.classList.add('snap-back');
+                moveKnob.style.transform = 'translate(-50%, -50%) scale(1, 1)';
+                joystickMove.y = 0;
+            };
+
+            moveJoystick.addEventListener('pointerdown', startDrag);
+            moveJoystick.addEventListener('pointermove', (e) => { if (dragging) handleMove(e.clientX); });
+            moveJoystick.addEventListener('pointerup', endDrag);
+            moveJoystick.addEventListener('pointercancel', endDrag);
+            moveJoystick.addEventListener('pointerleave', endDrag);
         }
 
         btnOpenShop.addEventListener('click', openStoreUI);
@@ -1153,7 +1212,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         const clickRaycaster = new THREE.Raycaster(); const mouseVector = new THREE.Vector2();
         window.addEventListener('pointerdown', (event) => {
             if (isModalOpen || postMeshes.length === 0 || !camera) return;
-            if (event.target.tagName === 'BUTTON' || event.target.closest('.modern-pill') || event.target.closest('.action-img-btn') || event.target.closest('.move-arrow-btn') || event.target.closest('.modern-modal') || event.target.closest('#ecommerce-app')) return;
+            if (event.target.tagName === 'BUTTON' || event.target.closest('.modern-pill') || event.target.closest('.action-img-btn') || event.target.closest('#move-joystick') || event.target.closest('.modern-modal') || event.target.closest('#ecommerce-app')) return;
             mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1; mouseVector.y = -(event.clientY / getViewportHeight()) * 2 + 1;
             clickRaycaster.setFromCamera(mouseVector, camera);
             const intersects = clickRaycaster.intersectObjects(postMeshes, true);
