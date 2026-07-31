@@ -819,9 +819,18 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     };
 
     const CAMERA_FOCAL_LENGTH = 100;
-    
+
+    // iOS Safari's floating toolbar means window.innerHeight tracks the SMALL viewport
+    // (shrinks while the toolbar is visible), which made the canvas stop short of the
+    // real screen edge no matter what the CSS said. <html> is sized with 100lvh, so its
+    // clientHeight gives us the full "toolbar hidden" height to size the canvas against —
+    // the page then draws behind the toolbar exactly like apple.com does.
+    function getViewportHeight() {
+        return document.documentElement.clientHeight || window.innerHeight;
+    }
+
     function calculateCameraDistance() {
-        const aspect = window.innerWidth / window.innerHeight;
+        const aspect = window.innerWidth / getViewportHeight();
         const minAspect = 0.6;  const maxAspect = 1.77; 
         const minDist = 40;     const maxDist = 73; 
         let clampedAspect = Math.max(minAspect, Math.min(maxAspect, aspect));
@@ -835,7 +844,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     const CAMERA_LIMIT_MIN_Z_DESKTOP = -1.0; const CAMERA_LIMIT_MIN_Z_MOBILE = -8.5; 
     
     function calculateCameraMinZ() {
-        const aspect = window.innerWidth / window.innerHeight;
+        const aspect = window.innerWidth / getViewportHeight();
         const mobileAspect = 9 / 16; const desktopAspect = 16 / 9;
         let ratio = (aspect - mobileAspect) / (desktopAspect - mobileAspect);
         ratio = Math.max(0, Math.min(1, ratio)); 
@@ -964,15 +973,15 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     function init3D() {
         const container = document.getElementById('canvas-container');
         scene = new THREE.Scene(); scene.background = new THREE.Color(0xaad8e6);
-        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / getViewportHeight(), 0.1, 200);
         camera.setFocalLength(CAMERA_FOCAL_LENGTH);
-        
+
         // iOS Safari has a much tighter WebGL memory budget than desktop/Android,
         // and a full-res framebuffer (antialias + devicePixelRatio 3 on modern iPhones)
         // was pushing it over the edge, causing Safari to silently reload the tab.
         const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         renderer = new THREE.WebGLRenderer({ antialias: !isIOS, powerPreference: "high-performance" });
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(window.innerWidth, getViewportHeight());
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, isIOS ? 1.5 : 2));
         renderer.outputEncoding = StandardColorSpace;
         container.appendChild(renderer.domElement);
@@ -1145,7 +1154,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         window.addEventListener('pointerdown', (event) => {
             if (isModalOpen || postMeshes.length === 0 || !camera) return;
             if (event.target.tagName === 'BUTTON' || event.target.closest('.modern-pill') || event.target.closest('.action-img-btn') || event.target.closest('.move-arrow-btn') || event.target.closest('.modern-modal') || event.target.closest('#ecommerce-app')) return;
-            mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1; mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1; mouseVector.y = -(event.clientY / getViewportHeight()) * 2 + 1;
             clickRaycaster.setFromCamera(mouseVector, camera);
             const intersects = clickRaycaster.intersectObjects(postMeshes, true);
             if (intersects.length > 0) {
@@ -1330,8 +1339,8 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 
     function onWindowResize() {
         CAMERA_DISTANCE = calculateCameraDistance(); currentCameraLimitMinZ = calculateCameraMinZ(); 
-        camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / getViewportHeight(); camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, getViewportHeight());
     }
 </script>
 </body>
