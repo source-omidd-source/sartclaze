@@ -48,32 +48,30 @@ body.lock { overflow: hidden; }
 #ui-layer > .absolute[class~="top-3"][class~="left-5"] { left: calc(1.25rem + env(safe-area-inset-left, 0px)) !important; }
 #ui-layer > .absolute[class~="top-3"][class~="right-5"] { right: calc(1.25rem + env(safe-area-inset-right, 0px)) !important; }
 
-/* Modern Minimal Circular Joystick */
-#modern-joystick {
-    position: absolute; bottom: calc(35px + env(safe-area-inset-bottom, 0px)); left: calc(35px + env(safe-area-inset-left, 0px)); width: 120px; height: 120px;
-    background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    border-radius: 50%; border: 1px solid rgba(255,255,255,0.4);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+/* Glass Arrow Move Buttons (replace the joystick) — "liquid glass" pill style, bottom-anchored */
+.move-arrow-btn {
+    position: absolute; bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+    width: 78px; height: 58px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.4), rgba(255,255,255,0.08));
+    backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border-radius: 22px; border: 1px solid rgba(255,255,255,0.55);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.7), inset 0 -10px 16px rgba(255,255,255,.05), 0 12px 26px rgba(0,0,0,0.18);
     display: none; pointer-events: auto; z-index: 20 !important;
+    align-items: center; justify-content: center; overflow: hidden;
+    -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none;
+    transition: transform 0.12s ease, background 0.12s ease;
 }
-/* Subtle track line to indicate 1-axis movement */
-#modern-joystick::before {
-    content: ''; position: absolute; top: 18%; bottom: 18%; left: 50%; transform: translateX(-50%);
-    width: 3px; background: rgba(255,255,255,0.25); border-radius: 2px; pointer-events: none;
+/* Glossy top highlight streak for a more "liquid glass" feel */
+.move-arrow-btn::before {
+    content: ''; position: absolute; top: 3px; left: 8%; right: 8%; height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
+    border-radius: 16px 16px 40px 40px; pointer-events: none;
 }
-#modern-knob {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 56px; height: 56px; border-radius: 50%;
-    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.75));
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,1);
-    transition: transform 0.05s linear; pointer-events: none;
-    display: flex; align-items: center; justify-content: center;
-}
-/* Little dot inside the knob */
-#modern-knob::after {
-    content: ''; width: 12px; height: 12px; border-radius: 50%;
-    background: rgba(0,0,0,0.1);
-}
+.move-arrow-btn svg { width: 24px; height: 24px; display: block; position: relative; z-index: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+.move-arrow-btn.pressed { background: linear-gradient(160deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15)); transform: scale(0.93); }
+#btn-move-back { left: calc(24px + env(safe-area-inset-left, 0px)); }
+#btn-move-forward { right: calc(24px + env(safe-area-inset-right, 0px)); }
 
 #interaction-prompt { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
 #error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; }
@@ -85,6 +83,36 @@ body.lock { overflow: hidden; }
   z-index: 50; display: none; pointer-events: auto;
 }
 #modal-backdrop { position: absolute; inset: 0; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 40; display: none; pointer-events: auto; }
+
+/* Clay / plasticine themed Contact Us panel — matches the claymation look of the 3D world */
+.clay-modal {
+  width: 88%; max-width: 380px; padding: 40px 30px 32px;
+  background: linear-gradient(155deg, #fbe9d9 0%, #f3d2ae 100%);
+  border-radius: 46% 54% 58% 42% / 48% 42% 58% 52%;
+  box-shadow: 0 30px 60px -15px rgba(120,70,30,.35), inset 0 2px 6px rgba(255,255,255,.6), inset 0 -6px 14px rgba(150,90,40,.18);
+  border: none;
+}
+.clay-icon {
+  width: 68px; height: 68px; margin: 0 auto 18px; border-radius: 50%;
+  background: linear-gradient(155deg, #ff9d66, #e8703a);
+  box-shadow: inset 0 3px 6px rgba(255,255,255,.55), inset 0 -5px 10px rgba(140,60,10,.35), 0 8px 18px rgba(210,100,40,.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.clay-title { font-size: 24px; font-weight: 800; color: #6b3d1f; margin-bottom: 8px; letter-spacing: -.02em; }
+.clay-sub { color: #8a5c38; font-size: 13.5px; line-height: 1.6; margin-bottom: 18px; padding: 0 6px; }
+.clay-email {
+  display: inline-block; margin-bottom: 24px; font-size: 13px; font-weight: 700; letter-spacing: .3px;
+  color: #6b3d1f; background: rgba(255,255,255,.55); padding: 10px 20px; border-radius: 999px;
+  box-shadow: inset 0 1px 3px rgba(255,255,255,.7), inset 0 -2px 5px rgba(150,90,40,.15);
+}
+.clay-btn {
+  width: 100%; padding: 14px 0; border-radius: 999px; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #fff;
+  background: linear-gradient(155deg, #f0895a, #d9612e);
+  box-shadow: inset 0 2px 4px rgba(255,255,255,.4), inset 0 -5px 10px rgba(120,50,10,.35), 0 10px 20px rgba(200,90,30,.3);
+  transition: transform .15s ease;
+}
+.clay-btn:active { transform: scale(.96); }
 
 .action-img-btn {
   width: var(--action-btn-size); height: auto; max-width: 45vw; cursor: pointer; transition: all 0.2s ease-in-out; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); pointer-events: auto;
@@ -255,9 +283,13 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,77,0,.5) } 50% { opacity: .55; box-shadow: 0 0 0 6px rgba(255,77,0,0) } }
 
 /* MOBILE */
-.bnav { display: none; position: fixed; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); z-index: 85; height: 58px; background: rgba(16,16,16,.92); backdrop-filter: blur(14px); border-radius: var(--pill); box-shadow: var(--sh2); }
-.bnav button { flex: 1; font-size: 9px; font-weight: 800; letter-spacing: 1.2px; color: #8b8b83; }
-.bnav button.on { color: #fff; }
+.bnav { display: none; position: fixed; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); z-index: 85; height: 58px;
+  background: rgba(255,255,255,0.55); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.6); border-radius: var(--pill);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.8), 0 8px 20px rgba(16,16,16,.08), 0 24px 60px rgba(16,16,16,.12);
+}
+.bnav button { flex: 1; font-size: 9px; font-weight: 800; letter-spacing: 1.2px; color: var(--mut); }
+.bnav button.on { color: var(--ink); }
 .mmenu { position: fixed; inset: 0; z-index: 110; background: var(--bg); display: none; flex-direction: column; padding: 86px 26px; }
 .mmenu.open { display: flex; }
 @media(max-width:1080px){
@@ -329,10 +361,13 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         </div>
     </div>
 
-    <!-- Modern Custom Circular Joystick -->
-    <div id="modern-joystick">
-        <div id="modern-knob"></div>
-    </div>
+    <!-- Glass Arrow Move Buttons (forward / backward) -->
+    <button id="btn-move-back" class="move-arrow-btn" aria-label="Backward">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+    </button>
+    <button id="btn-move-forward" class="move-arrow-btn" aria-label="Forward">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
 
     <div id="modal-backdrop"></div>
 
@@ -342,14 +377,15 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         <img id="btn-open-pos" src="checkout.png" class="action-img-btn" alt="Checkout" style="display: none;" onerror="this.onerror=null; this.src='https://placehold.co/130x130/f4ecd8/111827?text=Checkout';">
     </div>
 
-    <!-- Easter Egg Modal -->
-    <div id="easter-egg-modal" class="modern-modal flex-col items-center p-8 w-[90%] max-w-[400px] text-center">
-        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6 shadow-md mx-auto">
-            <span class="text-3xl">🎉</span>
+    <!-- Contact Us Modal (clay/plasticine style, matching the 3D world's claymation look) -->
+    <div id="easter-egg-modal" class="modern-modal clay-modal flex-col items-center text-center">
+        <div class="clay-icon">
+            <span class="text-3xl">✉️</span>
         </div>
-        <h2 class="text-2xl font-bold mb-2 text-purple-600">ایستر اگ!</h2>
-        <p class="mb-8 text-gray-500 text-sm">شما راز مخفی این پست را پیدا کردید!</p>
-        <button id="btn-close-easter-egg" class="w-full py-3 rounded-full bg-purple-600 text-white font-semibold hover:bg-purple-800 transition">عالیه!</button>
+        <h2 class="clay-title">Contact Us</h2>
+        <p class="clay-sub">Got a question, a collab idea, or just wanna say hi? Drop us a line.</p>
+        <a href="mailto:hello@cartblaze.com" class="clay-email">hello@cartblaze.com</a>
+        <button id="btn-close-easter-egg" class="clay-btn">Close</button>
     </div>
     
     <audio id="cart-squeak" src="https://cdn.freesound.org/previews/175/175409_3158652-lq.mp3" loop preload="auto"></audio>
@@ -719,7 +755,16 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     /* =========================================================
        BRIDGE: 3D WORLD & UI INTERACTION
        ========================================================= */
-    
+
+    // Keeps the browser's own chrome (address bar / system nav bar tint) matched to
+    // whatever is on screen, so there's never a mismatched black strip at the edges —
+    // without ever hiding the browser UI itself (no Fullscreen API call).
+    function setChrome(color) {
+        const meta = document.getElementById('theme-color-meta');
+        if (meta) meta.setAttribute('content', color);
+        document.body.style.backgroundColor = color;
+    }
+
     function openStoreUI() {
         const app = $('ecommerce-app');
         if (app) {
@@ -727,7 +772,8 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             document.body.classList.add('lock');
             $('ui-layer').style.display = 'none'; // hide 3D HUD
             isModalOpen = true;
-            go('shop'); 
+            setChrome('#fafaf7');
+            go('shop');
             if (interactionPrompt) interactionPrompt.style.display = 'none';
         }
     }
@@ -744,7 +790,8 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             document.body.classList.add('lock');
             $('ui-layer').style.display = 'none'; // hide 3D HUD
             isModalOpen = true;
-            go('checkout'); 
+            setChrome('#fafaf7');
+            go('checkout');
             if (interactionPrompt) interactionPrompt.style.display = 'none';
         }
     }
@@ -756,7 +803,8 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             document.body.classList.remove('lock');
             $('ui-layer').style.display = 'block'; // show 3D HUD
             isModalOpen = false;
-            checkInteraction(); 
+            setChrome('#87CEEB');
+            checkInteraction();
         }
     }
 
@@ -829,14 +877,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             // بخش کلیک تغییر کرده تا قفل صدای آیفون باز بشه
             btn.onclick = () => {
 
-                // Try to hide browser chrome (address bar / nav bar) on browsers that support it.
-                // iOS Safari doesn't support the Fullscreen API, so this is a no-op there — harmless.
-                const fsEl = document.documentElement;
-                if (fsEl.requestFullscreen) fsEl.requestFullscreen().catch(() => {});
-                else if (fsEl.webkitRequestFullscreen) fsEl.webkitRequestFullscreen();
-
-                const themeMeta = document.getElementById('theme-color-meta');
-                if (themeMeta) themeMeta.setAttribute('content', '#87CEEB');
+                setChrome('#87CEEB');
 
                 // 2. بقیه کدهای استارت
                 isStartClicked = true;
@@ -1058,43 +1099,29 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             if(['KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft'].includes(e.code)) keys.down = false; 
         });
 
-        // Touch Joystick (Modern Minimal Circular)
-        const joystick = document.getElementById('modern-joystick');
-        const knob = document.getElementById('modern-knob');
-        let joyActive = false;
-        let joyCenterY = 0;
+        // Glass Arrow Buttons (forward / backward) — replaces the old joystick
+        const btnBack = document.getElementById('btn-move-back');
+        const btnForward = document.getElementById('btn-move-forward');
 
         if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
-            joystick.style.display = 'block';
-            
-            joystick.addEventListener('touchstart', (e) => {
-                joyActive = true;
-                const rect = joystick.getBoundingClientRect();
-                joyCenterY = rect.top + rect.height / 2;
-                handleJoyMove(e.touches[0].clientY);
-            }, {passive: false});
+            btnBack.style.display = 'flex';
+            btnForward.style.display = 'flex';
 
             document.addEventListener('touchmove', (e) => {
                 // Prevent overscroll pull-to-refresh on mobile when the game is active
                 if (!isModalOpen && e.cancelable) e.preventDefault();
-                if (!joyActive) return;
-                handleJoyMove(e.touches[0].clientY);
             }, {passive: false});
 
-            document.addEventListener('touchend', () => {
-                if (!joyActive) return;
-                joyActive = false;
-                knob.style.transform = `translate(-50%, -50%)`;
-                joystickMove.y = 0;
-            });
-
-            function handleJoyMove(clientY) {
-                const maxDist = 32; // Limit knob to stay within the circle beautifully
-                let dy = clientY - joyCenterY;
-                dy = Math.max(-maxDist, Math.min(maxDist, dy));
-                knob.style.transform = `translate(-50%, calc(-50% + ${dy}px))`;
-                joystickMove.y = dy / maxDist; 
-            }
+            const bindHold = (btn, value) => {
+                const press = (e) => { e.preventDefault(); btn.classList.add('pressed'); joystickMove.y = value; };
+                const release = () => { btn.classList.remove('pressed'); if (joystickMove.y === value) joystickMove.y = 0; };
+                btn.addEventListener('pointerdown', press);
+                btn.addEventListener('pointerup', release);
+                btn.addEventListener('pointerleave', release);
+                btn.addEventListener('pointercancel', release);
+            };
+            bindHold(btnForward, -1); // forward = velocity.z decreasing
+            bindHold(btnBack, 1);     // backward = velocity.z increasing
         }
 
         btnOpenShop.addEventListener('click', openStoreUI);
@@ -1117,7 +1144,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         const clickRaycaster = new THREE.Raycaster(); const mouseVector = new THREE.Vector2();
         window.addEventListener('pointerdown', (event) => {
             if (isModalOpen || postMeshes.length === 0 || !camera) return;
-            if (event.target.tagName === 'BUTTON' || event.target.closest('.modern-pill') || event.target.closest('.action-img-btn') || event.target.closest('#modern-joystick') || event.target.closest('.modern-modal') || event.target.closest('#ecommerce-app')) return;
+            if (event.target.tagName === 'BUTTON' || event.target.closest('.modern-pill') || event.target.closest('.action-img-btn') || event.target.closest('.move-arrow-btn') || event.target.closest('.modern-modal') || event.target.closest('#ecommerce-app')) return;
             mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1; mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
             clickRaycaster.setFromCamera(mouseVector, camera);
             const intersects = clickRaycaster.intersectObjects(postMeshes, true);
