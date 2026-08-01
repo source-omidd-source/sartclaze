@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>CARTBLAZE® — VOL.06 CONCRETE SEASON</title>
+<link rel="icon" href="cartblaze.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rubik+Spray+Paint&display=swap" rel="stylesheet">
 
@@ -35,7 +36,7 @@
 }
 
 body, html {
-  margin: 0; padding: 0; overflow-x: hidden; width: 100%; height: 100%; height: 100lvh;
+  margin: 0; padding: 0; overflow-x: hidden; width: 100%; height: 100%; height: 100dvh;
   background-color: #050505; font-family: 'Inter', system-ui, sans-serif;
   touch-action: none; overscroll-behavior: none; /* جلوگیری از رفرش صفحه در موبایل */
 }
@@ -59,18 +60,24 @@ body.lock { overflow: hidden; }
 .move-joystick {
     position: absolute; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
     width: 108px; height: 26px; border-radius: 999px;
-    background: rgba(255,255,255,0.12);
-    backdrop-filter: blur(26px) saturate(220%); -webkit-backdrop-filter: blur(26px) saturate(220%);
-    border: 1px solid rgba(255,255,255,0.22);
-    box-shadow: inset 0 0 0 0.5px rgba(255,255,255,.35), inset 0 6px 10px -6px rgba(255,255,255,.5), 0 6px 18px rgba(0,0,0,0.16);
+    background: rgba(255,255,255,.05);
+    backdrop-filter: blur(7px) saturate(160%); -webkit-backdrop-filter: blur(7px) saturate(160%);
+    border: none;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,.32),
+        inset 0 1px 0 rgba(255,255,255,.6),
+        inset 0 -1px 2px rgba(255,255,255,.12),
+        0 10px 20px rgba(0,0,0,.15);
     display: none; pointer-events: auto; z-index: 20 !important;
     -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none;
 }
-/* Subtle liquid-glass grain, like Apple's frosted material texture */
+/* Etched/brushed glass texture — visible diagonal streaks, like frosted glass */
 .move-joystick::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: .1; mix-blend-mode: overlay;
+    background-image: repeating-linear-gradient(115deg,
+        rgba(255,255,255,.22) 0px, rgba(255,255,255,.22) 1px,
+        transparent 1px, transparent 5px);
+    mix-blend-mode: overlay;
 }
 .move-joystick .chev { position: absolute; top: 50%; transform: translateY(-50%); opacity: .38; pointer-events: none; z-index: 1; }
 .move-joystick .chev svg { width: 9px; height: 9px; display: block; }
@@ -836,13 +843,13 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 
     const CAMERA_FOCAL_LENGTH = 100;
 
-    // iOS Safari's floating toolbar means window.innerHeight tracks the SMALL viewport
-    // (shrinks while the toolbar is visible), which made the canvas stop short of the
-    // real screen edge no matter what the CSS said. <html> is sized with 100lvh, so its
-    // clientHeight gives us the full "toolbar hidden" height to size the canvas against —
-    // the page then draws behind the toolbar exactly like apple.com does.
+    // Reverted: sizing the canvas to the "large viewport" (to draw behind Safari's toolbar)
+    // forced the GPU to render more pixels than the visible area at all times, which tanked
+    // frame rate on real iPhones. window.innerHeight (the actual visible viewport) is cheaper
+    // and keeps things smooth — the toolbar-bleed effect wasn't achievable on this locked,
+    // non-scrolling canvas anyway.
     function getViewportHeight() {
-        return document.documentElement.clientHeight || window.innerHeight;
+        return window.innerHeight;
     }
 
     function calculateCameraDistance() {
@@ -1139,23 +1146,26 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             let dragging = false;
             let trackCenterX = 0;
             const maxDist = 34;   // true drag range that maps to full speed
-            const extraMax = 8;   // extra px of "jelly" overstretch allowed past maxDist
+            const extraMax = 10;  // small extra px the knob may visually overtravel, rubber-banded
 
-            // Rubber-band curve: overstretch grows fast at first, then resists — like iOS elastic scroll.
+            // Rubber-band curve: overtravel grows fast at first, then resists — like iOS elastic scroll.
             const rubberBand = (over) => extraMax * (1 - Math.exp(-over / (extraMax * 0.6)));
 
+            // Simple, restrained elastic feel: the knob itself keeps moving a little past the
+            // limit (with resistance) instead of freezing, plus a small symmetric pulse-scale —
+            // no origin trickery, which is what made the previous version look glitchy.
             const setKnob = (rawDx) => {
                 const clamped = Math.max(-maxDist, Math.min(maxDist, rawDx));
-                let visualDx = clamped;
                 let stretch = 0;
+                let visualDx = clamped;
                 const over = Math.abs(rawDx) - maxDist;
                 if (over > 0) {
-                    const damped = rubberBand(Math.min(over, 80));
-                    visualDx = Math.sign(rawDx) * (maxDist + damped);
-                    stretch = damped / extraMax; // 0..~1
+                    stretch = rubberBand(Math.min(over, 80)) / extraMax; // 0..~1
+                    visualDx = Math.sign(rawDx) * (maxDist + stretch * extraMax);
                 }
-                const scaleX = 1 + stretch * 0.16;
-                const scaleY = 1 - stretch * 0.072;
+
+                const scaleX = 1 + stretch * 0.1;
+                const scaleY = 1 - stretch * 0.05;
                 moveKnob.style.transform = `translate(calc(-50% + ${visualDx}px), -50%) scale(${scaleX}, ${scaleY})`;
                 return clamped;
             };
@@ -1181,6 +1191,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
                 dragging = false;
                 moveJoystick.classList.remove('dragging');
                 moveKnob.classList.add('snap-back');
+                moveKnob.style.transformOrigin = 'center center';
                 moveKnob.style.transform = 'translate(-50%, -50%) scale(1, 1)';
                 joystickMove.y = 0;
             };
