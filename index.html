@@ -71,6 +71,12 @@ body.lock { overflow: hidden; }
     display: none; pointer-events: auto; z-index: 20 !important;
     -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none;
 }
+@keyframes joystickPopIn {
+    0%   { transform: translateX(-50%) translateY(70px) scale(.6); opacity: 0; }
+    55%  { transform: translateX(-50%) translateY(-8px) scale(1.06); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+}
+.move-joystick.pop-in { animation: joystickPopIn .55s cubic-bezier(.22,1,.36,1) both; }
 /* Etched/brushed glass texture — visible diagonal streaks, like frosted glass */
 .move-joystick::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -99,6 +105,27 @@ body.lock { overflow: hidden; }
 
 #interaction-prompt { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
 #error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; }
+
+/* Intro / Start screen — live 3D map with a black tint behind the logo + start button */
+.intro-welcome {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 3px;
+    color: rgba(255,255,255,.85); text-transform: uppercase; margin-bottom: 14px;
+    text-shadow: 0 2px 10px rgba(0,0,0,.4);
+}
+.intro-logo { width: 260px; max-width: 62vw; height: auto; margin-bottom: 26px; filter: drop-shadow(0 14px 24px rgba(0,0,0,.35)); }
+.intro-start-btn {
+    font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: .5px;
+    color: var(--ink); background: #fff; border: none; border-radius: 999px;
+    padding: 15px 42px; cursor: pointer; box-shadow: 0 10px 26px rgba(0,0,0,.28);
+    transition: transform .2s var(--ease), box-shadow .2s ease;
+}
+.intro-start-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 14px 32px rgba(0,0,0,.34); }
+.intro-start-btn:active { transform: scale(.96); }
+.intro-footer {
+    position: absolute; left: 0; right: 0; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    text-align: center; font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 1.4px;
+    color: rgba(255,255,255,.55); text-transform: uppercase; z-index: 5; pointer-events: none;
+}
 
 .modern-modal {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -341,20 +368,23 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 <body>
 
 <!-- 3D WORLD: START SCREEN -->
-<div id="intro-screen" class="absolute inset-0 z-[9999] bg-[#050505] overflow-hidden transition-opacity duration-1000 pointer-events-auto flex items-center justify-center">
-    <div id="intro-bg" class="absolute inset-0 z-0 bg-[url('BG.jpg')] bg-cover bg-center filter blur-[1px] brightness-75 scale-105 opacity-0 transition-opacity duration-1000"></div>
-    <div id="start-ui-container" class="absolute z-10 flex flex-col items-center justify-center w-full pointer-events-none transition-all duration-1000 opacity-0 translate-y-6" style="bottom: 15%">
-        <img id="btn-start-experience" src="start.png" alt="Start" 
-             class="cursor-pointer transition-transform duration-300 drop-shadow-lg pointer-events-auto w-[320px] h-auto hover:scale-105"
-             onerror="this.src=''; this.alt='START'; this.className='text-white/80 hover:text-white text-xl font-bold tracking-[0.4em] uppercase transition-all duration-300 cursor-pointer drop-shadow-md pb-1 border-b border-transparent hover:border-white/50 pointer-events-auto';">
-        
-        <div id="loading-container" class="hidden flex-col items-center gap-3 w-40 pointer-events-none mt-6">
+<div id="intro-screen" class="absolute inset-0 z-[9999] overflow-hidden transition-opacity duration-1000 pointer-events-auto flex items-center justify-center">
+    <!-- Solid black until every 3D asset is in — otherwise models pop in one at a time as they
+         load and it looks broken. JS fades this down to INTRO_TINT_OPACITY once loading finishes. -->
+    <div id="intro-tint" class="absolute inset-0 z-0" style="background:#000; opacity:1; transition: opacity 1.2s ease;"></div>
+    <div id="start-ui-container" class="relative z-10 flex flex-col items-center justify-center w-full pointer-events-none transition-all duration-1000 opacity-0 translate-y-6">
+        <div class="intro-welcome">WELCOME TO</div>
+        <img id="intro-logo" src="cartblaze.png" alt="Cart Blaze" class="intro-logo pointer-events-none" onerror="this.style.display='none'">
+        <button id="btn-start-experience" class="intro-start-btn pointer-events-auto">START</button>
+
+        <div id="loading-container" class="flex flex-col items-center gap-3 w-40 pointer-events-none mt-6">
             <div class="text-white/70 text-[9px] font-light tracking-[0.2em] uppercase">Loading...</div>
             <div class="w-full h-[1px] bg-white/20 overflow-hidden rounded-full">
                 <div id="loading-bar-fill" class="h-full bg-white/90 w-0 transition-all duration-300"></div>
             </div>
         </div>
     </div>
+    <div class="intro-footer">ALL RIGHTS RESERVED BY CARTBLAZE 2026</div>
     <div id="error-log" class="absolute top-5 left-5 z-20 text-red-500 bg-white/90 p-4 rounded-lg text-xs font-mono hidden"></div>
 </div>
 
@@ -884,9 +914,15 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     const ENV_ROT_X = 0; const ENV_ROT_Y = Math.PI; const ENV_ROT_Z = 0;
     const ENV_SCALE = 0.47; const AUTO_FIT_ENV = true; 
     const CART_POS_Y = 0.1; const CART_START_X = 1; const CART_START_Z = 17.7;
+    // Where the cart sits on the road (Z axis — X is off-road, never used for movement) while
+    // the intro screen is up. It drives in from here to CART_START_Z once Start is pressed.
+    // Bigger offset = starts further away down the road.
+    const CART_INTRO_START_Z = CART_START_Z + 20;
+    const CART_INTRO_SLIDE_SPEED = 2.2; // higher = faster slide-in
+    // Strength of the black tint over the live 3D map on the intro screen (0 = none, 1 = solid black)
+    const INTRO_TINT_OPACITY = 0.55;
 
     const PROPS_GLB_NAME = 'props.glb';
-    const START_IMAGE_WIDTH = 320; const START_IMAGE_BOTTOM = 15; const START_IMAGE_HOVER_SCALE = 1.05;
     const StandardColorSpace = THREE.sRGBEncoding;
 
     let raycastTimer = 0; let currentSteerAngle = 0; 
@@ -897,37 +933,30 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     let cartInitialSnapped = false; 
     let cartWheels = []; const WHEEL_RADIUS = 0.2;
 
+    let cartIntroActive = false;
+
     function applyStartSettings() {
-        const container = document.getElementById('start-ui-container');
         const btn = document.getElementById('btn-start-experience');
-        if (container) container.style.bottom = START_IMAGE_BOTTOM + '%';
         if (btn) {
-            btn.style.width = START_IMAGE_WIDTH + 'px'; btn.style.height = 'auto'; 
-            btn.onmouseenter = () => { if(!isStartClicked) btn.style.transform = `scale(${START_IMAGE_HOVER_SCALE})`; };
-            btn.onmouseleave = () => { if(!isStartClicked) btn.style.transform = 'scale(1)'; };
-            
             // بخش کلیک تغییر کرده تا قفل صدای آیفون باز بشه
             btn.onclick = () => {
 
                 setChrome('#87CEEB');
+                cartIntroActive = true; // drive the cart in from CART_INTRO_START_Z to CART_START_Z
 
                 // 2. بقیه کدهای استارت
                 isStartClicked = true;
                 btn.style.opacity = '0';
                 setTimeout(() => btn.style.display = 'none', 300);
 
-                if(isEngineLoaded) startGame();
-                else document.getElementById('loading-container').classList.remove('hidden');
+                if(isEngineLoaded) startGame(); // else: loading bar is already visible, just wait for revealScene()
             };
         }
     }
 
     function preloadIntroAssets() {
-        const bgImg = new Image(); bgImg.src = 'BG.jpg';
-        const introBg = document.getElementById('intro-bg');
         const startUI = document.getElementById('start-ui-container');
-        const revealUI = () => { if (introBg) introBg.classList.remove('opacity-0'); setTimeout(() => { if (startUI) startUI.classList.remove('opacity-0', 'translate-y-6'); }, 500); };
-        bgImg.onload = revealUI; bgImg.onerror = revealUI; 
+        requestAnimationFrame(() => { if (startUI) startUI.classList.remove('opacity-0', 'translate-y-6'); });
     }
 
     applyStartSettings(); preloadIntroAssets();
@@ -935,13 +964,24 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     let isEngineLoaded = false; let isStartClicked = false;
     let envLoaded = false; let propsLoaded = false;
 
+    // Reveals the (by-now fully assembled) scene through the tint and hides the loading bar —
+    // called once on real completion and once on hard failure, never left dangling either way.
+    function revealScene() {
+        const tint = document.getElementById('intro-tint');
+        if (tint) tint.style.opacity = INTRO_TINT_OPACITY;
+        const loading = document.getElementById('loading-container');
+        // Inline style, not the 'hidden' class — Tailwind's generated source order between
+        // "hidden" and "flex" isn't guaranteed, so toggling classes here could silently no-op.
+        if (loading) loading.style.display = 'none';
+    }
+
     function initLoadingManager() {
-        THREE.DefaultLoadingManager.onLoad = function () { isEngineLoaded = true; if(isStartClicked) startGame(); };
+        THREE.DefaultLoadingManager.onLoad = function () { isEngineLoaded = true; revealScene(); if(isStartClicked) startGame(); };
         THREE.DefaultLoadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
             const fill = document.getElementById('loading-bar-fill');
             if (fill) fill.style.width = ((itemsLoaded / itemsTotal) * 100) + '%';
         };
-        THREE.DefaultLoadingManager.onError = function ( url ) { console.warn('Error loading asset:', url); isEngineLoaded = true; if(isStartClicked) startGame(); };
+        THREE.DefaultLoadingManager.onError = function ( url ) { console.warn('Error loading asset:', url); isEngineLoaded = true; revealScene(); if(isStartClicked) startGame(); };
     }
 
     function startGame() {
@@ -968,6 +1008,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     const btnOpenPos = document.getElementById('btn-open-pos');
     const btnCloseEasterEgg = document.getElementById('btn-close-easter-egg');
     let isMoving = false, isModalOpen = false;
+    let touchCapable = false;
     let activePrompt = null; let interactionTimeout = null;
     const clock = new THREE.Clock();
 
@@ -999,13 +1040,12 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / getViewportHeight(), 0.1, 200);
         camera.setFocalLength(CAMERA_FOCAL_LENGTH);
 
-        // iOS Safari has a much tighter WebGL memory budget than desktop/Android,
-        // and a full-res framebuffer (antialias + devicePixelRatio 3 on modern iPhones)
-        // was pushing it over the edge, causing Safari to silently reload the tab.
-        const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        renderer = new THREE.WebGLRenderer({ antialias: !isIOS, powerPreference: "high-performance" });
+        // Antialias + full pixel ratio were throttled for iOS earlier over GPU-memory fears,
+        // but the ~80% texture-size cut since then (env.glb etc.) freed up plenty of headroom —
+        // keeping AA off is what was making edges look jagged/torn on real phones.
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, getViewportHeight());
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isIOS ? 1.5 : 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.outputEncoding = StandardColorSpace;
         container.appendChild(renderer.domElement);
         
@@ -1100,7 +1140,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     }
 
     function createCart() {
-        cartGroup = new THREE.Group(); cartGroup.position.set(CART_START_X, CART_POS_Y, CART_START_Z); scene.add(cartGroup);
+        cartGroup = new THREE.Group(); cartGroup.position.set(CART_START_X, CART_POS_Y, CART_INTRO_START_Z); scene.add(cartGroup);
         const loader = new THREE.GLTFLoader(); const dracoLoader = new THREE.DRACOLoader();
         dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/'); loader.setDRACOLoader(dracoLoader);
 
@@ -1135,8 +1175,11 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         const moveJoystick = document.getElementById('move-joystick');
         const moveKnob = document.getElementById('move-joystick-knob');
 
-        if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
-            moveJoystick.style.display = 'block';
+        touchCapable = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+        if (touchCapable) {
+            // Shown later, once the cart finishes driving in — see the cartIntroActive
+            // completion block in animate(). Popping in on its own reads more polished
+            // than just being there from frame one.
 
             document.addEventListener('touchmove', (e) => {
                 // Prevent overscroll pull-to-refresh on mobile when the game is active
@@ -1282,6 +1325,18 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         const dt = Math.min(clock.getDelta(), 0.1); 
 
         for (const mixer of mixers) mixer.update(dt);
+
+        if (cartIntroActive) {
+            cartGroup.position.z += (CART_START_Z - cartGroup.position.z) * CART_INTRO_SLIDE_SPEED * dt;
+            if (Math.abs(CART_START_Z - cartGroup.position.z) < 0.02) {
+                cartGroup.position.z = CART_START_Z; cartIntroActive = false;
+                if (touchCapable) {
+                    const mj = document.getElementById('move-joystick');
+                    if (mj) { mj.style.display = 'block'; mj.classList.add('pop-in'); }
+                }
+            }
+        }
+
         if (isFiery && fireFrames.length > 0) {
             fireFrameTimer += dt;
             if (fireFrameTimer > (1 / FIRE_FPS)) {
@@ -1392,7 +1447,10 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         }
 
         // Camera Logic
-        if (!isCameraInitialized && cartGroup) { cameraTargetPos.copy(cartGroup.position); isCameraInitialized = true; }
+        // Wait for the cart's first ground-snap before locking the camera's starting height —
+        // otherwise it captures the cart's pre-snap Y (0.1) and has to visibly rise once the
+        // real ground height kicks in, which is the "camera starts low then jumps up" bug.
+        if (!isCameraInitialized && cartGroup && cartInitialSnapped) { cameraTargetPos.copy(cartGroup.position); isCameraInitialized = true; }
         let idealTarget = new THREE.Vector3();
         if (cartGroup.position.z >= currentCameraLimitMinZ && cartGroup.position.z <= CAMERA_LIMIT_MAX_Z) { idealTarget.copy(cartGroup.position); } 
         else { idealTarget.set(cameraTargetPos.x, cameraTargetPos.y, THREE.MathUtils.clamp(cartGroup.position.z, currentCameraLimitMinZ, CAMERA_LIMIT_MAX_Z)); }
