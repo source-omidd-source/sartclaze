@@ -77,6 +77,27 @@ body.lock { overflow: hidden; }
     100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
 }
 .move-joystick.pop-in { animation: joystickPopIn .55s cubic-bezier(.22,1,.36,1) both; }
+
+/* Desktop keyboard hint — typed in once, "USE [W] AND [S] to move the cart" */
+.kb-hint {
+    position: absolute; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
+    display: none; align-items: center; pointer-events: none; z-index: 20;
+    color: rgba(255,255,255,.92); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    letter-spacing: .3px; white-space: nowrap; text-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.kb-hint.show { display: flex; }
+.kb-hint .key-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 22px; padding: 0 6px; margin: 0 4px;
+    border-radius: 6px; background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.42);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 5px rgba(0,0,0,.18);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    font-weight: 800; font-size: 12px; color: #fff;
+}
+.kb-hint .kb-cursor { display: inline-block; margin-left: 2px; animation: kbCursorBlink 1s steps(1) infinite; }
+@keyframes kbCursorBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
 /* Etched/brushed glass texture — visible diagonal streaks, like frosted glass */
 .move-joystick::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -118,9 +139,16 @@ body.lock { overflow: hidden; }
     color: var(--ink); background: #fff; border: none; border-radius: 999px;
     padding: 15px 42px; cursor: pointer; box-shadow: 0 10px 26px rgba(0,0,0,.28);
     transition: transform .2s var(--ease), box-shadow .2s ease;
+    opacity: 0; transform: translateY(16px) scale(.85); pointer-events: none; /* stays hidden/inert until loading finishes */
 }
 .intro-start-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 14px 32px rgba(0,0,0,.34); }
 .intro-start-btn:active { transform: scale(.96); }
+@keyframes startBtnPopIn {
+    0%   { opacity: 0; transform: translateY(16px) scale(.85); }
+    60%  { opacity: 1; transform: translateY(-4px) scale(1.05); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.intro-start-btn.pop-in { animation: startBtnPopIn .5s cubic-bezier(.22,1,.36,1) forwards; }
 .intro-footer {
     position: absolute; left: 0; right: 0; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     text-align: center; font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 1.4px;
@@ -327,7 +355,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 .pass input { background: #1b1b19; border-color: #2e2e2a; color: #fff; border-radius: var(--pill); padding: 17px 26px; margin-bottom: 12px; }
 
 /* TOAST */
-#toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--ink); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; padding: 15px 28px; border-radius: var(--pill); z-index: 9999; transition: transform .35s cubic-bezier(.2,1.5,.4,1); text-transform: uppercase; box-shadow: var(--sh2); }
+#toast { position: fixed; top: calc(26px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%) translateY(-120px); background: var(--ink); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; padding: 15px 28px; border-radius: var(--pill); z-index: 9999; transition: transform .35s cubic-bezier(.2,1.5,.4,1); text-transform: uppercase; box-shadow: var(--sh2); }
 #toast.show { transform: translateX(-50%) translateY(0); }
 #toast.flame { background: var(--flame); }
 
@@ -375,7 +403,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     <div id="start-ui-container" class="relative z-10 flex flex-col items-center justify-center w-full pointer-events-none transition-all duration-1000 opacity-0 translate-y-6">
         <div class="intro-welcome">WELCOME TO</div>
         <img id="intro-logo" src="cartblaze.png" alt="Cart Blaze" class="intro-logo pointer-events-none" onerror="this.style.display='none'">
-        <button id="btn-start-experience" class="intro-start-btn pointer-events-auto">START</button>
+        <button id="btn-start-experience" class="intro-start-btn">START</button>
 
         <div id="loading-container" class="flex flex-col items-center gap-3 w-40 pointer-events-none mt-6">
             <div class="text-white/70 text-[9px] font-light tracking-[0.2em] uppercase">Loading...</div>
@@ -421,6 +449,9 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         <span class="chev right"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
         <div id="move-joystick-knob" class="move-joystick-knob"></div>
     </div>
+
+    <!-- Desktop/laptop equivalent of the joystick — keyboard hint, typed in once the cart arrives -->
+    <div id="kb-hint" class="kb-hint"></div>
 
     <div id="modal-backdrop"></div>
 
@@ -935,6 +966,52 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 
     let cartIntroActive = false;
 
+    // Desktop/laptop control hint — the keyboard equivalent of the mobile joystick pop-in.
+    // Types itself out once, letter by letter, with the W/S keys shown as little key-caps.
+    function showKeyboardHint() {
+        const el = document.getElementById('kb-hint');
+        if (!el) return;
+        el.classList.add('show');
+        el.innerHTML = '';
+        const cursor = document.createElement('span');
+        cursor.className = 'kb-cursor';
+        cursor.textContent = '|';
+        el.appendChild(cursor);
+
+        const segments = [
+            { type: 'text', text: 'USE ' },
+            { type: 'badge', text: 'W' },
+            { type: 'text', text: ' AND ' },
+            { type: 'badge', text: 'S' },
+            { type: 'text', text: ' to move the cart' },
+        ];
+        let i = 0;
+        const next = () => {
+            if (i >= segments.length) { cursor.remove(); return; }
+            const seg = segments[i];
+            if (seg.type === 'badge') {
+                const b = document.createElement('span');
+                b.className = 'key-badge';
+                b.textContent = seg.text;
+                b.style.opacity = '0';
+                el.insertBefore(b, cursor);
+                requestAnimationFrame(() => { b.style.transition = 'opacity .18s ease, transform .18s ease'; b.style.opacity = '1'; });
+                i++;
+                setTimeout(next, 150);
+            } else {
+                const span = document.createElement('span');
+                el.insertBefore(span, cursor);
+                let c = 0;
+                const iv = setInterval(() => {
+                    span.textContent += seg.text[c];
+                    c++;
+                    if (c >= seg.text.length) { clearInterval(iv); i++; next(); }
+                }, 32);
+            }
+        };
+        next();
+    }
+
     function applyStartSettings() {
         const btn = document.getElementById('btn-start-experience');
         if (btn) {
@@ -973,6 +1050,9 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         // Inline style, not the 'hidden' class — Tailwind's generated source order between
         // "hidden" and "flex" isn't guaranteed, so toggling classes here could silently no-op.
         if (loading) loading.style.display = 'none';
+
+        const btn = document.getElementById('btn-start-experience');
+        if (btn) { btn.style.pointerEvents = 'auto'; btn.classList.add('pop-in'); }
     }
 
     function initLoadingManager() {
@@ -1333,6 +1413,8 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
                 if (touchCapable) {
                     const mj = document.getElementById('move-joystick');
                     if (mj) { mj.style.display = 'block'; mj.classList.add('pop-in'); }
+                } else {
+                    showKeyboardHint();
                 }
             }
         }
