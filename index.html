@@ -987,7 +987,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         ];
         let i = 0;
         const next = () => {
-            if (i >= segments.length) { cursor.remove(); return; }
+            if (i >= segments.length) { cursor.remove(); controlsEnabled = true; return; }
             const seg = segments[i];
             if (seg.type === 'badge') {
                 const b = document.createElement('span');
@@ -1089,6 +1089,10 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     const btnCloseEasterEgg = document.getElementById('btn-close-easter-egg');
     let isMoving = false, isModalOpen = false;
     let touchCapable = false;
+    // Movement input stays dead until the player has actually seen how to move (the joystick's
+    // pop-in finishing, or the keyboard hint finishing its typewriter reveal) — see animate()
+    // and showKeyboardHint().
+    let controlsEnabled = false;
     let activePrompt = null; let interactionTimeout = null;
     const clock = new THREE.Clock();
 
@@ -1242,9 +1246,10 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 
     function init3DUI() {
         // Keyboard: A, D are also Forward/Backward. X axis movement is completely removed.
-        document.addEventListener('keydown', (e) => { 
-            if(['KeyW', 'ArrowUp', 'KeyD', 'ArrowRight'].includes(e.code)) keys.up = true; 
-            if(['KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft'].includes(e.code)) keys.down = true; 
+        document.addEventListener('keydown', (e) => {
+            if (!controlsEnabled) return;
+            if(['KeyW', 'ArrowUp', 'KeyD', 'ArrowRight'].includes(e.code)) keys.up = true;
+            if(['KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft'].includes(e.code)) keys.down = true;
         });
         document.addEventListener('keyup', (e) => { 
             if(['KeyW', 'ArrowUp', 'KeyD', 'ArrowRight'].includes(e.code)) keys.up = false; 
@@ -1300,6 +1305,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
             };
 
             const startDrag = (e) => {
+                if (!controlsEnabled) return;
                 e.preventDefault();
                 dragging = true;
                 moveKnob.classList.remove('snap-back');
@@ -1407,12 +1413,22 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
         for (const mixer of mixers) mixer.update(dt);
 
         if (cartIntroActive) {
-            cartGroup.position.z += (CART_START_Z - cartGroup.position.z) * CART_INTRO_SLIDE_SPEED * dt;
+            const introDeltaZ = (CART_START_Z - cartGroup.position.z) * CART_INTRO_SLIDE_SPEED * dt;
+            cartGroup.position.z += introDeltaZ;
+            if (cartWheels.length > 0) {
+                cartWheels.forEach(wheel => wheel.rotateX(Math.abs(introDeltaZ) / WHEEL_RADIUS));
+            }
             if (Math.abs(CART_START_Z - cartGroup.position.z) < 0.02) {
                 cartGroup.position.z = CART_START_Z; cartIntroActive = false;
                 if (touchCapable) {
                     const mj = document.getElementById('move-joystick');
-                    if (mj) { mj.style.display = 'block'; mj.classList.add('pop-in'); }
+                    if (mj) {
+                        mj.style.display = 'block'; mj.classList.add('pop-in');
+                        // Don't let them drive off before they've actually seen the joystick appear.
+                        mj.addEventListener('animationend', () => { controlsEnabled = true; }, { once: true });
+                    } else {
+                        controlsEnabled = true; // no joystick element found — fail open rather than soft-lock
+                    }
                 } else {
                     showKeyboardHint();
                 }
