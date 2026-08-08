@@ -12,8 +12,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rubik+Spray+Paint&display=swap" rel="stylesheet">
 
-<!-- Tailwind CSS (for 3D UI parts) -->
-<script src="https://cdn.tailwindcss.com"></script>
 <!-- Three.js & Loaders -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -52,9 +50,44 @@ body.lock { overflow: hidden; }
 /* 3D Canvas Elements */
 #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
-#ui-layer > .absolute[class~="top-3"] { top: calc(0.75rem + env(safe-area-inset-top, 0px)) !important; }
-#ui-layer > .absolute[class~="top-3"][class~="left-5"] { left: calc(1.25rem + env(safe-area-inset-left, 0px)) !important; }
-#ui-layer > .absolute[class~="top-3"][class~="right-5"] { right: calc(1.25rem + env(safe-area-inset-right, 0px)) !important; }
+
+/* HUD rows (top-left profile, top-right cart) — plain CSS replacing the old Tailwind
+   absolute/top-3/left-5/right-5 utility classes now that the Tailwind CDN script is gone;
+   safe-area insets are baked directly into each rule. */
+.hud-profile-row {
+    position: absolute; top: calc(0.75rem + env(safe-area-inset-top, 0px)); left: calc(1.25rem + env(safe-area-inset-left, 0px));
+    display: flex; align-items: center; gap: 12px; pointer-events: auto;
+}
+.hud-avatar {
+    width: 48px; height: 48px; background: #fff; border-radius: 999px; border: 1px solid #000;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,.08); overflow: hidden;
+}
+.hud-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hud-guest-name { font-weight: 700; font-size: 18px; color: #101010; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+
+.hud-main-logo {
+    position: absolute; top: 80px; left: 50%; transform: translateX(-50%); width: 128px;
+    pointer-events: none; opacity: .9; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); transition: all .2s;
+}
+@media (min-width: 768px) { .hud-main-logo { top: 20px; } }
+
+.hud-cart-row {
+    position: absolute; top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: calc(1.25rem + env(safe-area-inset-right, 0px));
+    display: flex; align-items: center; gap: 16px; pointer-events: auto;
+}
+.hud-cart-amount { font-weight: 700; font-size: 14px; color: #1f2937; letter-spacing: .05em; }
+.hud-cart-icon-wrap { position: relative; cursor: pointer; transition: transform .2s; }
+.hud-cart-icon-wrap:hover { transform: scale(1.05); }
+.hud-cart-circle {
+    width: 52px; height: 52px; background: #fff; border-radius: 999px; border: 1px solid #000;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,.08); overflow: hidden;
+}
+#hud-cart-icon { width: 48px; height: 48px; object-fit: contain; }
+#hud-cart-badge {
+    position: absolute; bottom: -8px; right: -8px; width: 24px; height: 24px; background: #22c55e; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+    border: 2px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
 
 /* Glass Rail + big liquid-glass Thumb (forward/backward) — thumb overflows the thin rail */
 .move-joystick {
@@ -125,7 +158,22 @@ body.lock { overflow: hidden; }
 .move-joystick-knob.snap-back { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), box-shadow .12s ease; }
 
 #interaction-prompt { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
-#error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; }
+#error-log { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 20px; font-family: monospace; text-align: left; max-width: 80%; display: none; pointer-events: auto; z-index: 99999; position: relative; font-size: 12px; }
+
+/* Intro screen layout — plain CSS replacing the old Tailwind absolute/flex/inset utility
+   classes now that the Tailwind CDN script is gone. This is the fix for the intermittent
+   "HUD bleeds through, no tint, no START button" flash: those Tailwind classes only worked
+   once the CDN script finished fetching+compiling asynchronously, which sometimes lost the
+   race against the 3D scene finishing its own load. This CSS is inline and loads
+   synchronously with the page, so there's no race left to lose. */
+#intro-screen { position: absolute; inset: 0; z-index: 9999; overflow: hidden; transition: opacity 1s; pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+#intro-tint { position: absolute; inset: 0; z-index: 0; }
+#start-ui-container { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; pointer-events: none; transition: all 1s; opacity: 1; transform: translateY(0); }
+#start-ui-container.intro-ui-hidden { opacity: 0; transform: translateY(24px); }
+#loading-container { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 160px; pointer-events: none; margin-top: 24px; }
+.loading-label { color: rgba(255,255,255,.7); font-size: 9px; font-weight: 300; letter-spacing: .2em; text-transform: uppercase; }
+.loading-track { width: 100%; height: 1px; background: rgba(255,255,255,.2); overflow: hidden; border-radius: 999px; }
+#loading-bar-fill { height: 100%; background: rgba(255,255,255,.9); width: 0; transition: width .3s; }
 
 /* Intro / Start screen — live 3D map with a black tint behind the logo + start button */
 .intro-welcome {
@@ -133,7 +181,7 @@ body.lock { overflow: hidden; }
     color: rgba(255,255,255,.85); text-transform: uppercase; margin-bottom: 14px;
     text-shadow: 0 2px 10px rgba(0,0,0,.4);
 }
-.intro-logo { width: 260px; max-width: 62vw; height: auto; margin-bottom: 26px; filter: drop-shadow(0 14px 24px rgba(0,0,0,.35)); }
+.intro-logo { width: 260px; max-width: 62vw; height: auto; margin-bottom: 26px; filter: drop-shadow(0 14px 24px rgba(0,0,0,.35)); pointer-events: none; }
 .intro-start-btn {
     font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: .5px;
     color: var(--ink); background: #fff; border: none; border-radius: 999px;
@@ -170,6 +218,7 @@ body.lock { overflow: hidden; }
   border-radius: 46% 54% 58% 42% / 48% 42% 58% 52%;
   box-shadow: 0 30px 60px -15px rgba(120,70,30,.35), inset 0 2px 6px rgba(255,255,255,.6), inset 0 -6px 14px rgba(150,90,40,.18);
   border: none;
+  flex-direction: column; align-items: center; text-align: center;
 }
 .clay-icon {
   width: 68px; height: 68px; margin: 0 auto 18px; border-radius: 50%;
@@ -177,6 +226,7 @@ body.lock { overflow: hidden; }
   box-shadow: inset 0 3px 6px rgba(255,255,255,.55), inset 0 -5px 10px rgba(140,60,10,.35), 0 8px 18px rgba(210,100,40,.35);
   display: flex; align-items: center; justify-content: center;
 }
+.clay-icon span { font-size: 30px; }
 .clay-title { font-size: 24px; font-weight: 800; color: #6b3d1f; margin-bottom: 8px; letter-spacing: -.02em; }
 .clay-sub { color: #8a5c38; font-size: 13.5px; line-height: 1.6; margin-bottom: 18px; padding: 0 6px; }
 .clay-email {
@@ -195,6 +245,10 @@ body.lock { overflow: hidden; }
 
 .action-img-btn {
   width: var(--action-btn-size); height: auto; max-width: 45vw; cursor: pointer; transition: all 0.2s ease-in-out; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); pointer-events: auto;
+  /* iOS Safari sometimes rasterizes the drop-shadow filter against a stale layer while the
+     scale animation (pop-in/pop-out, below) is running, rendering the shadow half-cut. Pinning
+     the element to its own stable compositing layer up front fixes it. */
+  will-change: transform, filter; -webkit-backface-visibility: hidden; backface-visibility: hidden;
 }
 .action-img-btn:hover { transform: scale(1.08) translateY(-5px); filter: drop-shadow(0 15px 25px rgba(0,0,0,0.4)); }
 .action-img-btn:active { transform: scale(0.95); }
@@ -396,24 +450,24 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 <body>
 
 <!-- 3D WORLD: START SCREEN -->
-<div id="intro-screen" class="absolute inset-0 z-[9999] overflow-hidden transition-opacity duration-1000 pointer-events-auto flex items-center justify-center">
+<div id="intro-screen">
     <!-- Solid black until every 3D asset is in — otherwise models pop in one at a time as they
          load and it looks broken. JS fades this down to INTRO_TINT_OPACITY once loading finishes. -->
-    <div id="intro-tint" class="absolute inset-0 z-0" style="background:#000; opacity:1; transition: opacity 1.2s ease;"></div>
-    <div id="start-ui-container" class="relative z-10 flex flex-col items-center justify-center w-full pointer-events-none transition-all duration-1000 opacity-0 translate-y-6">
+    <div id="intro-tint" style="background:#000; opacity:1; transition: opacity 1.2s ease;"></div>
+    <div id="start-ui-container" class="intro-ui-hidden">
         <div class="intro-welcome">WELCOME TO</div>
-        <img id="intro-logo" src="cartblaze.png" alt="Cart Blaze" class="intro-logo pointer-events-none" onerror="this.style.display='none'">
+        <img id="intro-logo" src="cartblaze.png" alt="Cart Blaze" class="intro-logo" onerror="this.style.display='none'">
         <button id="btn-start-experience" class="intro-start-btn">START</button>
 
-        <div id="loading-container" class="flex flex-col items-center gap-3 w-40 pointer-events-none mt-6">
-            <div class="text-white/70 text-[9px] font-light tracking-[0.2em] uppercase">Loading...</div>
-            <div class="w-full h-[1px] bg-white/20 overflow-hidden rounded-full">
-                <div id="loading-bar-fill" class="h-full bg-white/90 w-0 transition-all duration-300"></div>
+        <div id="loading-container">
+            <div class="loading-label">Loading...</div>
+            <div class="loading-track">
+                <div id="loading-bar-fill"></div>
             </div>
         </div>
     </div>
     <div class="intro-footer">ALL RIGHTS RESERVED BY CARTBLAZE 2026</div>
-    <div id="error-log" class="absolute top-5 left-5 z-20 text-red-500 bg-white/90 p-4 rounded-lg text-xs font-mono hidden"></div>
+    <div id="error-log"></div>
 </div>
 
 <!-- 3D WORLD: CANVAS -->
@@ -422,24 +476,24 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 <!-- 3D WORLD: UI LAYER -->
 <div id="ui-layer">
     <!-- Guest Profile Section -->
-    <div class="absolute top-3 left-5 flex items-center gap-3 pointer-events-auto">
-        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center border-1 border-black shadow-sm overflow-hidden">
-            <img src="Profile.png" class="w-full h-full object-cover" alt="Profile" onerror="this.style.display='none'">
+    <div class="hud-profile-row">
+        <div class="hud-avatar">
+            <img src="Profile.png" alt="Profile" onerror="this.style.display='none'">
         </div>
-        <span class="font-bold text-lg text-gray-900 drop-shadow-md">guest</span>
+        <span class="hud-guest-name">guest</span>
     </div>
 
     <!-- MAIN LOGO (Responsive positioning) -->
-    <img src="cartblaze.png" class="absolute top-20 md:top-5 left-1/2 -translate-x-1/2 w-32 pointer-events-none opacity-90 drop-shadow-md transition-all" alt="Cart Blaze" onerror="this.style.display='none'">
+    <img src="cartblaze.png" class="hud-main-logo" alt="Cart Blaze" onerror="this.style.display='none'">
 
     <!-- HUD Cart Section -->
-    <div class="absolute top-3 right-5 flex items-center gap-4 pointer-events-auto" onclick="toast('CHECKOUT IS AT THE POS MACHINE! 🏃‍♂️', true)">
-        <span id="hud-amount" class="font-bold text-sm text-gray-800 tracking-wider">cart: $0</span>
-        <div class="relative cursor-pointer hover:scale-105 transition-transform">
-            <div class="w-13 h-13 bg-white rounded-full flex items-center justify-center border-1 border-black shadow-sm overflow-hidden">
-                <img id="hud-cart-icon" src="Cart.png" class="w-12 h-12 object-contain" alt="Cart" onerror="this.style.display='none'">
+    <div class="hud-cart-row" onclick="toast('CHECKOUT IS AT THE POS MACHINE! 🏃‍♂️', true)">
+        <span id="hud-amount" class="hud-cart-amount">cart: $0</span>
+        <div class="hud-cart-icon-wrap">
+            <div class="hud-cart-circle">
+                <img id="hud-cart-icon" src="Cart.png" alt="Cart" onerror="this.style.display='none'">
             </div>
-            <div id="hud-cart-badge" class="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white font-bold border-2 border-transparent shadow-sm">0</div>
+            <div id="hud-cart-badge">0</div>
         </div>
     </div>
 
@@ -462,9 +516,9 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
     </div>
 
     <!-- Contact Us Modal (clay/plasticine style, matching the 3D world's claymation look) -->
-    <div id="easter-egg-modal" class="modern-modal clay-modal flex-col items-center text-center">
+    <div id="easter-egg-modal" class="modern-modal clay-modal">
         <div class="clay-icon">
-            <span class="text-3xl">✉️</span>
+            <span>✉️</span>
         </div>
         <h2 class="clay-title">Contact Us</h2>
         <p class="clay-sub">Got a question, a collab idea, or just wanna say hi? Drop us a line.</p>
@@ -1033,7 +1087,7 @@ nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--soft); }
 
     function preloadIntroAssets() {
         const startUI = document.getElementById('start-ui-container');
-        requestAnimationFrame(() => { if (startUI) startUI.classList.remove('opacity-0', 'translate-y-6'); });
+        requestAnimationFrame(() => { if (startUI) startUI.classList.remove('intro-ui-hidden'); });
     }
 
     applyStartSettings(); preloadIntroAssets();
